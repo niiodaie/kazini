@@ -76,9 +76,16 @@ const Pricing = () => {
               Back
             </Button>
 
-            {user && (
+          {user && (
               <Badge className="bg-white/20 text-white border-white/30">
                 Current: {user.plan === 'pro' ? 'Pro' : user.plan === 'enterprise' ? 'Enterprise' : 'Basic'}
               </Badge>
             )}
-          </div
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Pricing;
