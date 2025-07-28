@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,11 +10,13 @@ import {
 } from 'lucide-react';
 
 const Pricing = () => {
-  // 🔧 Simulate user for now — replace with real auth state
+  // TODO: Replace with real auth state
   const user = { plan: 'basic' };
 
-  // 🔙 Simple back handler
-  const onBack = () => window.history.back();
+  // Handle back to home
+  const onBack = () => {
+    window.location.href = '/'; // Sends to hero/landing page
+  };
 
   const getDiscountPercentage = (plan) => {
     if (plan.price.yearly === 0) return 0;
@@ -25,7 +27,7 @@ const Pricing = () => {
 
   return (
     <div className="min-h-screen romantic-bg">
-      {/* Floating emotional motifs */}
+      {/* Floating motifs */}
       <div className="emotional-motifs">
         <div className="motif">💘</div>
         <div className="motif">❣️</div>
@@ -35,7 +37,7 @@ const Pricing = () => {
         <div className="motif">❤️</div>
       </div>
 
-      {/* Dynamic light movement */}
+      {/* Light overlay */}
       <div className="light-movement"></div>
 
       <div className="relative z-10 min-h-screen p-4">
@@ -48,7 +50,7 @@ const Pricing = () => {
               className="text-white hover:bg-white/10"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+              Back to Home
             </Button>
 
             {user && (
@@ -58,20 +60,22 @@ const Pricing = () => {
             )}
           </div>
 
-          {/* Example cards section (optional future content) */}
-          {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Pricing Plans */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {PLANS.map((plan, index) => (
               <Card key={index} className="bg-white/10 border-white/20 text-white">
                 <CardHeader>
                   <CardTitle>{plan.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p>${plan.price.monthly}/month</p>
-                  <p className="text-sm text-white/70">{getDiscountPercentage(plan)}% off yearly</p>
+                  <p className="text-lg font-bold">${plan.price.monthly}/month</p>
+                  <p className="text-sm text-white/70">
+                    {getDiscountPercentage(plan)}% off yearly plan
+                  </p>
                 </CardContent>
               </Card>
             ))}
-          </div> */}
+          </div>
         </div>
       </div>
     </div>
