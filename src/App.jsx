@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp } from 'lucide-react';
+import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut } from 'lucide-react';
 import './App.css';
 
 // Import assets
@@ -12,14 +12,41 @@ import TruthTest from './components/TruthTest';
 import CoupleMode from './components/CoupleMode';
 import TrustIndex from './components/TrustIndex';
 import History from './components/History';
+import Auth from './components/Auth';
+import UserProfile from './components/UserProfile';
+import GlobalSettings from './components/GlobalSettings';
+import Pricing from './components/Pricing';
+import LongDistance from './components/LongDistance';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     setIsLoaded(true);
+    
+    // Check for existing user session
+    const savedUser = localStorage.getItem('kazini_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
   }, []);
+
+  const handleAuthSuccess = (userData) => {
+    setUser(userData);
+    setCurrentView('home');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setCurrentView('home');
+  };
+
+  const handleUpgrade = () => {
+    // In real app, redirect to payment flow
+    alert('Upgrade feature coming soon!');
+  };
 
   const features = [
     {
@@ -68,19 +95,76 @@ function App() {
 
   const renderView = () => {
     switch (currentView) {
+      case 'auth':
+        return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
+      case 'profile':
+        return <UserProfile user={user} onBack={() => setCurrentView('home')} onLogout={handleLogout} onUpgrade={handleUpgrade} onNavigate={setCurrentView} />;
+      case 'global-settings':
+        return <GlobalSettings onBack={() => setCurrentView('profile')} user={user} onSettingsUpdate={(settings) => console.log('Settings updated:', settings)} />;
+      case 'pricing':
+        return <Pricing onBack={() => setCurrentView('home')} user={user} onUpgrade={handleUpgrade} />;
+      case 'long-distance':
+        return <LongDistance onBack={() => setCurrentView('home')} user={user} />;
       case 'truth-test':
-        return <TruthTest onBack={() => setCurrentView('home')} />;
+        return <TruthTest onBack={() => setCurrentView('home')} user={user} />;
       case 'couple-mode':
-        return <CoupleMode onBack={() => setCurrentView('home')} />;
+        return <CoupleMode onBack={() => setCurrentView('home')} user={user} />;
       case 'trust-index':
-        return <TrustIndex onBack={() => setCurrentView('home')} />;
+        return <TrustIndex onBack={() => setCurrentView('home')} user={user} />;
       case 'history':
-        return <History onBack={() => setCurrentView('home')} />;
+        return <History onBack={() => setCurrentView('home')} user={user} />;
       default:
         return (
-          <div className="min-h-screen">
+          <div className="min-h-screen romantic-bg">
+            {/* Floating emotional motifs */}
+            <div className="emotional-motifs">
+              <div className="motif">💔</div>
+              <div className="motif">💑</div>
+              <div className="motif">💬</div>
+              <div className="motif">💍</div>
+              <div className="motif">❤️</div>
+              <div className="motif">💕</div>
+            </div>
+            
+            {/* Dynamic light movement */}
+            <div className="light-movement"></div>
+
+            {/* Navigation Header */}
+            <nav className="relative z-20 p-4">
+              <div className="max-w-6xl mx-auto flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <img src={kaziniIcon} alt="Kazini" className="w-10 h-10 heart-pulse" />
+                  <span className="text-white font-bold text-xl">Kazini</span>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  {user ? (
+                    <div className="flex items-center gap-4">
+                      <span className="text-white/80 text-sm">
+                        Welcome, {user.firstName}
+                      </span>
+                      <button
+                        onClick={() => setCurrentView('profile')}
+                        className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full transition-all duration-300"
+                      >
+                        <User className="w-4 h-4" />
+                        Profile
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setCurrentView('auth')}
+                      className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-full transition-all duration-300"
+                    >
+                      Sign In
+                    </button>
+                  )}
+                </div>
+              </div>
+            </nav>
+
             {/* Hero Section */}
-            <section className="kazini-hero-bg min-h-screen flex items-center justify-center relative overflow-hidden">
+            <section className="min-h-screen flex items-center justify-center relative overflow-hidden pt-0">
               {/* Background Animation */}
               <div className="absolute inset-0 opacity-10">
                 <div className="floating-animation absolute top-20 left-20 w-32 h-32 bg-white rounded-full"></div>
@@ -95,11 +179,13 @@ function App() {
                   transition={{ duration: 0.8 }}
                   className="mb-8"
                 >
-                  <img 
-                    src={kaziniLogo} 
-                    alt="Kazini Logo" 
-                    className="w-64 h-auto mx-auto mb-6 floating-animation"
-                  />
+                  <div className="heart-pulse">
+                    <img 
+                      src={kaziniLogo} 
+                      alt="Kazini Logo" 
+                      className="w-64 h-auto mx-auto mb-6"
+                    />
+                  </div>
                 </motion.div>
 
                 <motion.h1
@@ -131,7 +217,7 @@ function App() {
                   className="flex flex-col sm:flex-row gap-6 justify-center items-center"
                 >
                   <button
-                    onClick={() => setCurrentView('truth-test')}
+                    onClick={() => user ? setCurrentView('truth-test') : setCurrentView('auth')}
                     className="bg-white text-[#3B2A4A] px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-3 pulse-glow"
                   >
                     <Play className="w-6 h-6" />
@@ -140,8 +226,8 @@ function App() {
                   </button>
                   
                   <button
-                    onClick={() => setCurrentView('couple-mode')}
-                    className="border-2 border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-[#3B2A4A] transition-all duration-300 flex items-center gap-3"
+                    onClick={() => user ? setCurrentView('couple-mode') : setCurrentView('auth')}
+                    className="border-2 border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-[#3B2A4A] transition-all duration-300 flex items-center gap-3 couple-glow"
                   >
                     <Users className="w-6 h-6" />
                     Couple Mode
@@ -166,7 +252,7 @@ function App() {
             </section>
 
             {/* Features Section */}
-            <section className="py-20 bg-gray-50">
+            <section className="py-20 bg-white/95 backdrop-blur-sm">
               <div className="container mx-auto px-6">
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
@@ -190,7 +276,7 @@ function App() {
                       initial={{ opacity: 0, y: 30 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.6, delay: index * 0.1 }}
-                      className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group"
+                      className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group border border-white/20"
                     >
                       <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
                         {feature.icon}
@@ -208,7 +294,7 @@ function App() {
             </section>
 
             {/* How It Works Section */}
-            <section className="py-20 bg-white">
+            <section className="py-20 bg-gradient-to-br from-purple-50/80 to-pink-50/80 backdrop-blur-sm">
               <div className="container mx-auto px-6">
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
@@ -252,7 +338,7 @@ function App() {
                       transition={{ duration: 0.6, delay: index * 0.2 }}
                       className="text-center"
                     >
-                      <div className="w-24 h-24 bg-gradient-to-r from-[#3B2A4A] to-[#FF5A5F] rounded-full flex items-center justify-center text-white mx-auto mb-6">
+                      <div className="w-24 h-24 bg-gradient-to-r from-[#3B2A4A] to-[#FF5A5F] rounded-full flex items-center justify-center text-white mx-auto mb-6 heart-pulse">
                         {step.icon}
                       </div>
                       <div className="text-sm font-bold text-[#FF5A5F] mb-2">STEP {step.step}</div>
@@ -265,7 +351,7 @@ function App() {
             </section>
 
             {/* Testimonials Section */}
-            <section className="py-20 bg-gray-50">
+            <section className="py-20 bg-white/90 backdrop-blur-sm">
               <div className="container mx-auto px-6">
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
@@ -288,7 +374,7 @@ function App() {
                       initial={{ opacity: 0, y: 30 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.6, delay: index * 0.1 }}
-                      className="bg-white p-8 rounded-2xl shadow-lg"
+                      className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-white/20"
                     >
                       <div className="flex items-center gap-1 mb-4">
                         {[...Array(testimonial.rating)].map((_, i) => (
@@ -304,7 +390,7 @@ function App() {
             </section>
 
             {/* CTA Section */}
-            <section className="py-20 kazini-hero-bg">
+            <section className="py-20 bg-gradient-to-r from-[#3B2A4A] to-[#FF5A5F]">
               <div className="container mx-auto px-6 text-center">
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
@@ -319,11 +405,11 @@ function App() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
                     <button
-                      onClick={() => setCurrentView('truth-test')}
+                      onClick={() => user ? setCurrentView('truth-test') : setCurrentView('auth')}
                       className="bg-white text-[#3B2A4A] px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-3 pulse-glow"
                     >
                       <Play className="w-6 h-6" />
-                      Start Free Trial
+                      {user ? 'Start Truth Test' : 'Get Started Free'}
                       <ArrowRight className="w-6 h-6" />
                     </button>
                   </div>
@@ -336,7 +422,7 @@ function App() {
               <div className="container mx-auto px-6">
                 <div className="flex flex-col md:flex-row justify-between items-center">
                   <div className="flex items-center gap-4 mb-6 md:mb-0">
-                    <img src={kaziniIcon} alt="Kazini" className="w-12 h-12" />
+                    <img src={kaziniIcon} alt="Kazini" className="w-12 h-12 heart-pulse" />
                     <div>
                       <div className="text-xl font-bold">Kazini</div>
                       <div className="text-sm text-white/70">Powered by Visnec Global</div>
@@ -344,16 +430,28 @@ function App() {
                   </div>
                   <div className="flex gap-8">
                     <button
-                      onClick={() => setCurrentView('trust-index')}
+                      onClick={() => user ? setCurrentView('trust-index') : setCurrentView('auth')}
                       className="text-white/70 hover:text-white transition-colors"
                     >
                       Trust Index
                     </button>
                     <button
-                      onClick={() => setCurrentView('history')}
+                      onClick={() => user ? setCurrentView('history') : setCurrentView('auth')}
                       className="text-white/70 hover:text-white transition-colors"
                     >
                       History
+                    </button>
+                    <button
+                      onClick={() => setCurrentView('pricing')}
+                      className="text-white/70 hover:text-white transition-colors"
+                    >
+                      Pricing
+                    </button>
+                    <button
+                      onClick={() => user ? setCurrentView('long-distance') : setCurrentView('auth')}
+                      className="text-white/70 hover:text-white transition-colors"
+                    >
+                      Long Distance
                     </button>
                   </div>
                 </div>
@@ -368,7 +466,7 @@ function App() {
   };
 
   return (
-    <div className="App">
+    <div className="min-h-screen">
       <AnimatePresence mode="wait">
         {renderView()}
       </AnimatePresence>

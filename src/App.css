@@ -133,6 +133,168 @@
   background: linear-gradient(135deg, #3B2A4A 0%, #FF5A5F 100%);
 }
 
+/* Enhanced romantic emotional background */
+.romantic-bg {
+  background: linear-gradient(135deg, 
+    #f8e8e8 0%,     /* Light blush */
+    #f4d4d4 25%,    /* Rose pink */
+    #e8b4b8 50%,    /* Deeper rose */
+    #d4a4a8 75%,    /* Maroon tint */
+    #8b4a6b 100%    /* Deep plum */
+  );
+  position: relative;
+  overflow: hidden;
+}
+
+/* Floating emotional motifs */
+.emotional-motifs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.motif {
+  position: absolute;
+  opacity: 0.08;
+  font-size: 2rem;
+  animation: floatMotif 15s ease-in-out infinite;
+  user-select: none;
+}
+
+.motif:nth-child(1) {
+  top: 10%;
+  left: 15%;
+  animation-delay: 0s;
+}
+
+.motif:nth-child(2) {
+  top: 20%;
+  right: 20%;
+  animation-delay: -3s;
+}
+
+.motif:nth-child(3) {
+  bottom: 30%;
+  left: 10%;
+  animation-delay: -6s;
+}
+
+.motif:nth-child(4) {
+  bottom: 15%;
+  right: 15%;
+  animation-delay: -9s;
+}
+
+.motif:nth-child(5) {
+  top: 50%;
+  left: 50%;
+  animation-delay: -12s;
+  transform: translate(-50%, -50%);
+}
+
+.motif:nth-child(6) {
+  top: 70%;
+  left: 80%;
+  animation-delay: -15s;
+}
+
+@keyframes floatMotif {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.05;
+  }
+  25% {
+    transform: translateY(-30px) rotate(5deg);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translateY(-15px) rotate(-3deg);
+    opacity: 0.08;
+  }
+  75% {
+    transform: translateY(-25px) rotate(2deg);
+    opacity: 0.1;
+  }
+}
+
+/* Heart pulse animation for logo */
+.heart-pulse {
+  animation: heartPulse 2s ease-in-out infinite;
+}
+
+@keyframes heartPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(255, 90, 95, 0.3));
+  }
+  50% {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 20px rgba(255, 90, 95, 0.5));
+  }
+}
+
+/* Glowing ring for couple mode */
+.couple-glow {
+  position: relative;
+}
+
+.couple-glow::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #ff5a5f, #ff8a8f, #ff5a5f);
+  border-radius: inherit;
+  z-index: -1;
+  animation: glowRing 3s ease-in-out infinite;
+}
+
+@keyframes glowRing {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+/* Dynamic light movements */
+.light-movement {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 70%
+  );
+  animation: lightSweep 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes lightSweep {
+  0% {
+    transform: translateX(-100%) translateY(-100%);
+  }
+  50% {
+    transform: translateX(0%) translateY(0%);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%);
+  }
+}
+
 .floating-animation {
   animation: float 6s ease-in-out infinite;
 }
