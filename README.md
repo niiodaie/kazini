@@ -121,6 +121,7 @@ kazini-app/
 ### Development Server
 ```bash
 cd kazini-app
+npm install --legacy-peer-deps
 npm run dev --host
 ```
 Access at: http://localhost:5173
