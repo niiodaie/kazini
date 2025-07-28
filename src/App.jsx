@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut } from 'lucide-react';
 import './App.css';
+import { PLANS } from './plans';
 
 // Import assets
 import kaziniLogo from './assets/kazinilogo.png';
