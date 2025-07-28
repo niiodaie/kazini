@@ -18,7 +18,6 @@ import History from './components/History';
 import Auth from './components/Auth';
 import UserProfile from './components/UserProfile';
 import GlobalSettings from './components/GlobalSettings';
-import Pricing from './components/Pricing';
 import LongDistance from './components/LongDistance';
 
 function App() {
