@@ -1,25 +1,14 @@
-import React, { useState } from 'react';
+iimport React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from '../ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { PLANS } from '../plans';
-import { 
-  Crown, 
-  Check, 
-  X, 
-  ArrowLeft, 
-  Star, 
-  Zap, 
-  Shield, 
-  Heart,
-  Users,
-  Video,
-  Download,
-  Headphones,
-  Globe,
-  Sparkles
+import {
+  Crown, Check, X, ArrowLeft, Star, Zap, Shield,
+  Heart, Users, Video, Download, Headphones, Globe, Sparkles
 } from 'lucide-react';
+
 
 const Pricing = () => {
   const getDiscountPercentage = (plan) => {
