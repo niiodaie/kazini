@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut } from 'lucide-react';
 import './App.css';
 import { PLANS } from './plans';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Pricing from './pages/Pricing';
 
 // Import assets
 import kaziniLogo from './assets/kazinilogo.png';
@@ -466,13 +468,19 @@ function App() {
     }
   };
 
-  return (
-    <div className="min-h-screen">
-      <AnimatePresence mode="wait">
-        {renderView()}
-      </AnimatePresence>
-    </div>
-  );
+ return (
+  <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<Auth />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/trust-test" element={<TruthTest />} />
+      <Route path="/couple-mode" element={<CoupleMode />} />
+      <Route path="/long-distance" element={<LongDistance />} />
+      {/* Add more routes as needed */}
+    </Routes>
+  </BrowserRouter>
+);
+
 }
 
 export default App;
