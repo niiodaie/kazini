@@ -10,6 +10,9 @@ import kaziniIcon from './assets/kazini-appicon.png';
 // Components
 import TruthTest from './components/TruthTest';
 import CoupleMode from './components/CoupleMode';
+import CoupleModeSelector from './components/CoupleModeSelector';
+import LiveSessionSetup from './components/LiveSessionSetup';
+import AsyncLinkGenerator from './components/AsyncLinkGenerator';
 import TrustIndex from './components/TrustIndex';
 import History from './components/History';
 import Auth from './components/Auth';
@@ -129,7 +132,26 @@ function App() {
       case 'truth-test':
         return <TruthTest onBack={() => setCurrentView('home')} user={user} />;
       case 'couple-mode':
-        return <CoupleMode onBack={() => setCurrentView('home')} user={user} />;
+        // Check authentication for couple mode
+        if (!user) {
+          setCurrentView('auth');
+          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
+        }
+        return <CoupleModeSelector onBack={() => setCurrentView('home')} onNavigate={setCurrentView} user={user} />;
+      case 'couple-live':
+        // Check authentication for live mode
+        if (!user) {
+          setCurrentView('auth');
+          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
+        }
+        return <LiveSessionSetup onBack={() => setCurrentView('couple-mode')} user={user} />;
+      case 'couple-async':
+        // Check authentication for async mode
+        if (!user) {
+          setCurrentView('auth');
+          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
+        }
+        return <AsyncLinkGenerator onBack={() => setCurrentView('couple-mode')} user={user} />;
       case 'trust-index':
         return <TrustIndex onBack={() => setCurrentView('home')} user={user} />;
       case 'history':
