@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut } from 'lucide-react';
+import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut, Camera } from 'lucide-react';
 import './App.css';
 
 // Import assets
@@ -17,11 +17,17 @@ import UserProfile from './components/UserProfile';
 import GlobalSettings from './components/GlobalSettings';
 import Pricing from './components/Pricing';
 import LongDistance from './components/LongDistance';
+import BillingModal from './components/BillingModal';
+import ComingSoonModal from './components/ComingSoonModal';
+import LiveDetection from './components/LiveDetection';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState(null);
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
+  const [comingSoonFeature, setComingSoonFeature] = useState('');
 
   useEffect(() => {
     setIsLoaded(true);
@@ -44,8 +50,21 @@ function App() {
   };
 
   const handleUpgrade = () => {
-    // In real app, redirect to payment flow
-    alert('Upgrade feature coming soon!');
+    setShowBillingModal(true);
+  };
+
+  const handleBillingClose = () => {
+    setShowBillingModal(false);
+  };
+
+  const handleComingSoon = (featureName) => {
+    setComingSoonFeature(featureName);
+    setShowComingSoonModal(true);
+  };
+
+  const handleComingSoonClose = () => {
+    setShowComingSoonModal(false);
+    setComingSoonFeature('');
   };
 
   const features = [
@@ -113,6 +132,8 @@ function App() {
         return <TrustIndex onBack={() => setCurrentView('home')} user={user} />;
       case 'history':
         return <History onBack={() => setCurrentView('home')} user={user} />;
+      case 'live-detection':
+        return <LiveDetection onBack={() => setCurrentView('home')} user={user} />;
       default:
         return (
           <div className="min-h-screen romantic-bg">
@@ -214,7 +235,7 @@ function App() {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 30 }}
                   transition={{ duration: 0.8, delay: 0.6 }}
-                  className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+                  className="flex flex-col sm:flex-row gap-4 justify-center items-center"
                 >
                   <button
                     onClick={() => user ? setCurrentView('truth-test') : setCurrentView('auth')}
@@ -223,6 +244,15 @@ function App() {
                     <Play className="w-6 h-6" />
                     Start Truth Test
                     <ArrowRight className="w-6 h-6" />
+                  </button>
+                  
+                  <button
+                    onClick={() => user ? setCurrentView('live-detection') : setCurrentView('auth')}
+                    className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center gap-3 shadow-lg"
+                  >
+                    <Camera className="w-6 h-6" />
+                    Go Live
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                   </button>
                   
                   <button
@@ -373,15 +403,15 @@ function App() {
                       initial={{ opacity: 0, y: 30 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.6, delay: index * 0.1 }}
-                      className="bg-white/10 backdrop-blur-sm rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20"
+                      className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200"
                     >
                       <div className="flex mb-4">
                         {[...Array(testimonial.rating)].map((_, i) => (
                           <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
-                      <p className="text-white/90 mb-4 italic">"{testimonial.text}"</p>
-                      <p className="text-white font-semibold">{testimonial.name}</p>
+                      <p className="text-gray-700 mb-4 italic text-lg">"{testimonial.text}"</p>
+                      <p className="text-gray-900 font-semibold">{testimonial.name}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -430,6 +460,36 @@ function App() {
                     <a href="#" onClick={() => setCurrentView('long-distance')} className="hover:text-white transition-colors duration-300">Long Distance</a>
                   </div>
                 </div>
+                
+                {/* Social Media Icons */}
+                <div className="flex justify-center gap-6 mb-6">
+                  <a href="https://facebook.com/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                  </a>
+                  <a href="https://instagram.com/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12.017 0C8.396 0 8.025.044 6.79.207 5.557.37 4.697.723 3.953 1.171c-.744.448-1.376 1.08-1.824 1.824C1.681 3.739 1.328 4.599 1.165 5.832.002 7.067-.042 7.438-.042 11.059s.044 3.992.207 5.227c.163 1.233.516 2.093.964 2.837.448.744 1.08 1.376 1.824 1.824.744.448 1.604.801 2.837.964 1.235.163 1.606.207 5.227.207s3.992-.044 5.227-.207c1.233-.163 2.093-.516 2.837-.964.744-.448 1.376-1.08 1.824-1.824.448-.744.801-1.604.964-2.837.163-1.235.207-1.606.207-5.227s-.044-3.992-.207-5.227c-.163-1.233-.516-2.093-.964-2.837-.448-.744-1.08-1.376-1.824-1.824C15.109 1.328 14.249.975 13.016.812 11.781.649 11.41.605 7.789.605h4.228z"/>
+                    </svg>
+                  </a>
+                  <a href="https://tiktok.com/@kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                    </svg>
+                  </a>
+                  <a href="https://linkedin.com/company/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                  </a>
+                  <a href="https://twitter.com/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                    </svg>
+                  </a>
+                </div>
+                
                 <p className="text-sm">
                   © 2024 Visnec Global. All rights reserved. | Privacy Policy | Terms of Service
                 </p>
@@ -440,9 +500,31 @@ function App() {
     }
   };
 
+  // Add message listener for coming soon modal
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data.type === 'SHOW_COMING_SOON') {
+        handleComingSoon(event.data.feature);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   return (
     <AnimatePresence mode="wait">
       {renderView()}
+      <BillingModal 
+        isOpen={showBillingModal} 
+        onClose={handleBillingClose}
+        onUpgrade={handleUpgrade}
+      />
+      <ComingSoonModal 
+        isOpen={showComingSoonModal} 
+        onClose={handleComingSoonClose}
+        feature={comingSoonFeature}
+      />
     </AnimatePresence>
   );
 }

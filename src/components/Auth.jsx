@@ -433,24 +433,25 @@ const Auth = ({ onBack, onAuthSuccess }) => {
                         type="button"
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleSocialLogin('microsoft')}
+                        onClick={handleGuestLogin}
                       >
-                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
-                        </svg>
-                        Microsoft
+                        <User className="w-4 h-4 mr-2" />
+                        Continue as Guest
                       </Button>
                     </div>
                     
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full mt-4"
-                      onClick={handleGuestLogin}
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      Continue as Guest
-                    </Button>
+                    {/* Forgot Password Link for Login Tab */}
+                    {activeTab === 'login' && (
+                      <div className="mt-4 text-center">
+                        <button
+                          type="button"
+                          className="text-sm text-purple-600 hover:text-purple-700 hover:underline"
+                          onClick={() => window.parent.postMessage({ type: 'SHOW_COMING_SOON', feature: 'Password Reset' }, '*')}
+                        >
+                          Forgot your password?
+                        </button>
+                      </div>
+                    )}
                     
                     <div className="mt-4 text-center">
                       <Badge variant="secondary" className="text-xs">
