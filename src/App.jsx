@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut, Camera } from 'lucide-react';
+import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut, Camera, Calendar, Hash } from 'lucide-react';
 import './App.css';
 
 // Import assets
@@ -18,6 +18,8 @@ import GlobalSettings from './components/GlobalSettings';
 import Pricing from './components/Pricing';
 import LongDistance from './components/LongDistance';
 import BillingModal from './components/BillingModal';
+import AIScheduler from './components/AIScheduler';
+import TruthCircle from './components/TruthCircle';
 import ComingSoonModal from './components/ComingSoonModal';
 import LiveDetection from './components/LiveDetection';
 
@@ -134,6 +136,10 @@ function App() {
         return <History onBack={() => setCurrentView('home')} user={user} />;
       case 'live-detection':
         return <LiveDetection onBack={() => setCurrentView('home')} user={user} />;
+      case 'ai-scheduler':
+        return <AIScheduler onBack={() => setCurrentView('home')} userPlan={user?.plan || 'free'} />;
+      case 'truth-circle':
+        return <TruthCircle onBack={() => setCurrentView('home')} />;
       default:
         return (
           <div className="min-h-screen romantic-bg">
@@ -261,6 +267,22 @@ function App() {
                   >
                     <Users className="w-6 h-6" />
                     Couple Mode
+                  </button>
+                  
+                  <button
+                    onClick={() => user ? setCurrentView('ai-scheduler') : setCurrentView('auth')}
+                    className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 flex items-center gap-3 shadow-lg"
+                  >
+                    <Calendar className="w-6 h-6" />
+                    AI Scheduler
+                  </button>
+                  
+                  <button
+                    onClick={() => setCurrentView('truth-circle')}
+                    className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 flex items-center gap-3 shadow-lg"
+                  >
+                    <Hash className="w-6 h-6" />
+                    Truth Circle
                   </button>
                 </motion.div>
 

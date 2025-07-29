@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare } from 'lucide-react';
 
 const Auth = ({ onBack, onAuthSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,10 +18,14 @@ const Auth = ({ onBack, onAuthSuccess }) => {
     confirmPassword: '',
     firstName: '',
     lastName: '',
+    phone: '',
+    otp: '',
     acceptTerms: false
   });
   const [errors, setErrors] = useState({});
   const [userLocation, setUserLocation] = useState({ country: '', city: '' });
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
 
   useEffect(() => {
     // Simulate location detection
@@ -107,6 +111,13 @@ const Auth = ({ onBack, onAuthSuccess }) => {
     setIsLoading(true);
     
     try {
+      if (provider === 'phone') {
+        // Handle phone authentication differently
+        setActiveTab('phone');
+        setIsLoading(false);
+        return;
+      }
+      
       // Simulate social login API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
@@ -209,9 +220,10 @@ const Auth = ({ onBack, onAuthSuccess }) => {
               
               <CardContent className="p-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsList className="grid w-full grid-cols-3 mb-6">
                     <TabsTrigger value="login">Login</TabsTrigger>
                     <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                    <TabsTrigger value="phone">Phone</TabsTrigger>
                   </TabsList>
                   
                   <form onSubmit={handleSubmit}>
@@ -355,6 +367,70 @@ const Auth = ({ onBack, onAuthSuccess }) => {
                       {errors.acceptTerms && <p className="text-sm text-red-500">{errors.acceptTerms}</p>}
                     </TabsContent>
                     
+                    <TabsContent value="phone" className="space-y-4">
+                      <div className="text-center mb-4">
+                        <h3 className="text-lg font-semibold">Phone Authentication</h3>
+                        <p className="text-sm text-gray-600">Enter your phone number to receive an OTP</p>
+                      </div>
+                      
+                      {!otpSent ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Phone Number</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Input
+                              id="phone"
+                              type="tel"
+                              placeholder="+1 (555) 123-4567"
+                              className="pl-10"
+                              value={formData.phone}
+                              onChange={(e) => handleInputChange('phone', e.target.value)}
+                            />
+                          </div>
+                          {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label htmlFor="otp">Enter OTP</Label>
+                          <div className="relative">
+                            <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Input
+                              id="otp"
+                              type="text"
+                              placeholder="Enter 6-digit code"
+                              className="pl-10"
+                              value={formData.otp}
+                              onChange={(e) => handleInputChange('otp', e.target.value)}
+                              maxLength={6}
+                            />
+                          </div>
+                          {errors.otp && <p className="text-sm text-red-500">{errors.otp}</p>}
+                          
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">
+                              OTP sent to {formData.phone}
+                            </p>
+                            {otpTimer > 0 ? (
+                              <p className="text-sm text-gray-500">
+                                Resend in {otpTimer}s
+                              </p>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-sm text-purple-600 hover:underline"
+                                onClick={() => {
+                                  setOtpTimer(30);
+                                  // Simulate resending OTP
+                                }}
+                              >
+                                Resend OTP
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                    
                     {errors.general && (
                       <div className="text-sm text-red-500 text-center mb-4">
                         {errors.general}
@@ -387,7 +463,19 @@ const Auth = ({ onBack, onAuthSuccess }) => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3 mt-4">
+                    <div className="grid grid-cols-1 gap-3 mt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleSocialLogin('phone')}
+                      >
+                        <Phone className="w-4 h-4 mr-2" />
+                        Continue with Phone
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                       <Button
                         type="button"
                         variant="outline"

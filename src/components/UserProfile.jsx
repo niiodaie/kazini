@@ -93,6 +93,33 @@ const UserProfile = ({ user, onBack, onLogout, onUpgrade, onNavigate }) => {
             </Button>
           </div>
 
+          {/* Warm Onboarding Message */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mb-8"
+          >
+            <Card className="bg-gradient-to-r from-pink-500/20 to-purple-500/20 backdrop-blur-sm border-white/20">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-full">
+                    <Heart className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold text-lg mb-1">
+                      Welcome to your relationship journey, {user.firstName}! 💕
+                    </h3>
+                    <p className="text-white/80 text-sm">
+                      Kazini is here to help you build deeper, more authentic connections. 
+                      Start with a Truth Test or explore our community features to discover emotional insights together.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
           <div className="grid md:grid-cols-3 gap-6">
             {/* Profile Card */}
             <motion.div

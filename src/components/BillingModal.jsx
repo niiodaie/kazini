@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Star, Zap, Crown, Shield, Users, TrendingUp } from 'lucide-react';
+import { X, Check, Star, Zap, Crown, Shield, Users, TrendingUp, Tag, AlertCircle } from 'lucide-react';
 
 const BillingModal = ({ isOpen, onClose, onUpgrade }) => {
   const [billingCycle, setBillingCycle] = useState('yearly'); // 'monthly' or 'yearly'
+  const [promoCode, setPromoCode] = useState('');
+  const [promoStatus, setPromoStatus] = useState(null); // null, 'valid', 'invalid'
+  const [promoDiscount, setPromoDiscount] = useState(0);
 
   const plans = {
     pro: {
@@ -45,16 +48,52 @@ const BillingModal = ({ isOpen, onClose, onUpgrade }) => {
     }
   };
 
+  const validatePromoCode = (code) => {
+    // Mock promo code validation
+    const validCodes = {
+      'SAVE20': 20,
+      'WELCOME10': 10,
+      'FIRST50': 50,
+      'KAZINI25': 25
+    };
+    
+    if (validCodes[code.toUpperCase()]) {
+      setPromoStatus('valid');
+      setPromoDiscount(validCodes[code.toUpperCase()]);
+    } else {
+      setPromoStatus('invalid');
+      setPromoDiscount(0);
+    }
+  };
+
+  const handlePromoCodeChange = (value) => {
+    setPromoCode(value);
+    if (value.length >= 3) {
+      validatePromoCode(value);
+    } else {
+      setPromoStatus(null);
+      setPromoDiscount(0);
+    }
+  };
+
+  const calculateDiscountedPrice = (originalPrice) => {
+    if (promoDiscount > 0) {
+      return originalPrice * (1 - promoDiscount / 100);
+    }
+    return originalPrice;
+  };
+
   const handleSubscribe = (planType) => {
     // In production, this would redirect to Lemon Squeezy checkout
     const plan = plans[planType];
     const pricing = plan[billingCycle];
+    const finalPrice = calculateDiscountedPrice(pricing.price);
     
     // Placeholder for Lemon Squeezy integration
-    const checkoutUrl = `https://kazini.lemonsqueezy.com/checkout/${planType}-${billingCycle}`;
+    const checkoutUrl = `https://kazini.lemonsqueezy.com/checkout/${planType}-${billingCycle}${promoCode ? `?promo=${promoCode}` : ''}`;
     
     // For now, show a modal or alert
-    alert(`Redirecting to Lemon Squeezy checkout for ${plan.name} (${billingCycle}): $${pricing.price}`);
+    alert(`Redirecting to Lemon Squeezy checkout for ${plan.name} (${billingCycle}): $${finalPrice.toFixed(2)}${promoDiscount > 0 ? ` (${promoDiscount}% off)` : ''}`);
     
     // In production:
     // window.location.href = checkoutUrl;
@@ -126,6 +165,43 @@ const BillingModal = ({ isOpen, onClose, onUpgrade }) => {
                 </button>
               </div>
             </div>
+            
+            {/* Promo Code Field */}
+            <div className="mt-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Tag className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Enter promo code (optional)"
+                  value={promoCode}
+                  onChange={(e) => handlePromoCodeChange(e.target.value)}
+                  className="block w-full pl-10 pr-12 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                {promoStatus && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    {promoStatus === 'valid' ? (
+                      <div className="flex items-center text-green-600">
+                        <Check className="h-4 w-4 mr-1" />
+                        <span className="text-xs font-medium">{promoDiscount}% off</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-red-600">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        <span className="text-xs">Invalid</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {promoStatus === 'valid' && (
+                <p className="mt-1 text-xs text-green-600">✅ Promo code applied! You'll save {promoDiscount}% on your subscription.</p>
+              )}
+              {promoStatus === 'invalid' && (
+                <p className="mt-1 text-xs text-red-600">❌ Invalid promo code. Please check and try again.</p>
+              )}
+            </div>
           </div>
 
           {/* Plans */}
@@ -164,31 +240,49 @@ const BillingModal = ({ isOpen, onClose, onUpgrade }) => {
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
                       
-                      {/* Pricing */}
+                                 {/* Pricing */}
                       <div className="mb-4">
                         <div className="flex items-center justify-center gap-2">
-                          <span className="text-4xl font-bold text-gray-900">
-                            ${pricing.price}
-                          </span>
+                          {promoDiscount > 0 ? (
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="text-2xl font-bold text-gray-400 line-through">
+                                  ${pricing.price}
+                                </span>
+                                <span className="text-4xl font-bold text-green-600">
+                                  ${calculateDiscountedPrice(pricing.price).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="text-green-600 text-sm font-medium">
+                                Save ${(pricing.price - calculateDiscountedPrice(pricing.price)).toFixed(2)} with {promoCode}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-4xl font-bold text-gray-900">
+                              ${pricing.price}
+                            </span>
+                          )}
                           <div className="text-left">
                             <div className="text-gray-600">
                               /{billingCycle === 'yearly' ? 'year' : 'month'}
                             </div>
-                            {pricing.originalPrice && (
-                              <div className="text-sm text-gray-400 line-through">
-                                ${pricing.originalPrice}
-                              </div>
-                            )}
                           </div>
                         </div>
-                        {pricing.savings && (
+                        {pricing.originalPrice && !promoDiscount && (
+                          <div className="text-center">
+                            <div className="text-sm text-gray-400 line-through">
+                              ${pricing.originalPrice}
+                            </div>
+                          </div>
+                        )}
+                        {pricing.savings && !promoDiscount && (
                           <div className="text-green-600 font-medium text-sm mt-1">
                             {pricing.savings}
                           </div>
                         )}
                         {billingCycle === 'yearly' && (
                           <div className="text-gray-600 text-sm mt-1">
-                            ${(pricing.price / 12).toFixed(2)}/month billed annually
+                            ${promoDiscount > 0 ? (calculateDiscountedPrice(pricing.price) / 12).toFixed(2) : (pricing.price / 12).toFixed(2)}/month billed annually
                           </div>
                         )}
                       </div>
