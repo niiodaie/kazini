@@ -109,6 +109,45 @@ function App() {
     };
   }, []);
 
+  const renderView = () => {
+    if (!isLoaded) return null;
+    if (!user) return <Auth />;
+    if (showWelcome) return <WelcomeScreen user={welcomeData} onContinue={() => {
+      setShowWelcome(false);
+      if (redirectAfterWelcome) setCurrentView(redirectAfterWelcome);
+    }} />;
+
+    switch (currentView) {
+      case 'home': return <TruthTest user={user} onNavigate={setCurrentView} />;
+      case 'couple': return <CoupleMode user={user} onNavigate={setCurrentView} />;
+      case 'selector': return <CoupleModeSelector user={user} onNavigate={setCurrentView} />;
+      case 'live': return <LiveSessionSetup user={user} onNavigate={setCurrentView} />;
+      case 'async': return <AsyncLinkGenerator user={user} onNavigate={setCurrentView} />;
+      case 'index': return <TrustIndex user={user} onNavigate={setCurrentView} />;
+      case 'history': return <History user={user} onNavigate={setCurrentView} />;
+      case 'profile': return <UserProfile user={user} onNavigate={setCurrentView} />;
+      case 'settings': return <GlobalSettings user={user} onNavigate={setCurrentView} />;
+      case 'pricing': return <Pricing user={user} onNavigate={setCurrentView} />;
+      case 'long': return <LongDistance user={user} onNavigate={setCurrentView} />;
+      case 'scheduler': return <AIScheduler user={user} onNavigate={setCurrentView} />;
+      case 'circle': return <TruthCircle user={user} onNavigate={setCurrentView} />;
+      case 'liveai': return <LiveDetection user={user} onNavigate={setCurrentView} />;
+      default: return <TruthTest user={user} onNavigate={setCurrentView} />;
+    }
+  };
+
+  const handleBillingSuccess = () => {
+    const updatedUser = { ...user, plan: 'pro' };
+    localStorage.setItem('kazini_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    setShowBillingModal(false);
+  };
+
+  const handleUpgrade = () => {
+    setShowBillingModal(true);
+    setShowUpgradePrompt(false);
+  };
+
   return (
     <AnimatePresence mode="wait">
       {renderView()}
@@ -120,3 +159,4 @@ function App() {
 }
 
 export default App;
+ 
