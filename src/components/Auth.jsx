@@ -143,27 +143,35 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     }
   };
 
-  const verifyOTP = async () => {
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    try {
-      // Simulate OTP verification
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock successful verification
-      if (formData.otp === '123456' || formData.otp.length === 6) {
-        setPhoneVerified(true);
-        
-        const userData = {
-          id: '1',
-          phone: formData.phone,
-          firstName: 'Phone',
-          lastName: 'User',
-          plan: 'free',
-          location: userLocation,
-          authMethod: 'phone'
-        };
+ const verifyOTP = async () => {
+  if (!validateForm()) return;
+
+  setIsLoading(true);
+  try {
+    const { error } = await supabase.auth.verifyOtp({
+      phone: formData.phone,
+      token: formData.otp,
+      type: 'sms',
+    });
+
+    if (error) {
+      console.error('OTP verification failed:', error.message);
+      setErrors({ otp: 'Invalid or expired OTP' });
+      return;
+    }
+
+    setPhoneVerified(true);
+
+    const userData = {
+      id: '1',
+      phone: formData.phone,
+      firstName: 'Phone',
+      lastName: 'User',
+      plan: 'free',
+      location: userLocation,
+      authMethod: 'phone',
+    };
+
         
         localStorage.setItem('kazini_user', JSON.stringify(userData));
         onAuthSuccess(userData, true, false); // isNewUser=true, isSocialLogin=false
