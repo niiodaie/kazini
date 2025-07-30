@@ -1,5 +1,4 @@
-import { supabase } from './supabase';
-
+import supabase from '../supabase'
 
 /**
  * Handle social login with OAuth providers
