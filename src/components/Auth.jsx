@@ -546,80 +546,25 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                     
                     {errors.general && (
                       <div className="text-sm text-red-500 text-center mb-4">
-                        <Button
-                      type="button"
-                      onClick={async () => {
-                        if (!otpSent) {
-                          // Send OTP
-                          if (!formData.phone) {
-                            setErrors({ phone: 'Phone number is required' });
-                            return;
-                          }
-                          
-                          setIsLoading(true);
-                          try {
-                            await handlePhoneAuth(formData.phone);
-                            setOtpSent(true);
-                            setOtpTimer(60); // 60 second countdown
-                            setErrors({});
-                          } catch (error) {
-                            setErrors({ phone: error.message });
-                          } finally {
-                            setIsLoading(false);
-                          }
-                        } else {
-                          // Verify OTP
-                          if (!formData.otp) {
-                            setErrors({ otp: 'OTP is required' });
-                            return;
-                          }
-                          
-                          setIsLoading(true);
-                          try {
-                            const result = await verifyPhoneOTP(formData.phone, formData.otp);
-                            
-                            if (result && result.user) {
-                              // Create user data object for the app
-                              const userData = {
-                                id: result.user.id,
-                                email: result.user.email,
-                                phone: result.user.phone,
-                                displayName: result.user.user_metadata?.display_name || result.user.phone || 'User',
-                                plan: 'free',
-                                location: userLocation,
-                                authMethod: 'phone',
-                                truthTestsUsed: 0,
-                                truthTestsResetDate: new Date().toISOString(),
-                                supabaseUser: result.user
-                              };
-                              
-                              localStorage.setItem('kazini_user', JSON.stringify(userData));
-                              setPhoneVerified(true);
-                              
-                              // Call success handler
-                              if (onAuthSuccess) {
-                                onAuthSuccess(userData, redirectTo);
-                              }
-                            }
-                          } catch (error) {
-                            setErrors({ otp: error.message });
-                          } finally {
-                            setIsLoading(false);
-                          }
-                        }
-                      }}
+                        {errors.general}
+                      </div>
+                    )}
+                    
+                    <Button
+                      type="submit"
                       disabled={isLoading}
                       className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     >
                       {isLoading ? (
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {!otpSent ? 'Sending OTP...' : 'Verifying...'}
+                          {activeTab === 'login' ? 'Signing In...' : 'Creating Account...'}
                         </div>
                       ) : (
-                        !otpSent ? 'Send OTP' : 'Verify OTP'
+                        activeTab === 'login' ? 'Sign In' : 'Create Account'
                       )}
                     </Button>
+                  </form>
                     
                     <div className="mt-6">
                     <div className="relative">
