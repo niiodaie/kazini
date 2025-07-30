@@ -16,7 +16,7 @@ const WelcomeScreen = ({ user, onComplete, isNewUser = false, isSocialLogin = fa
   description: "You've just joined thousands of couples discovering deeper emotional truth and authentic connections.",
   action: "Get Started",
   color: "from-pink-500 to-red-500"
-}
+},
     {
       icon: Sparkles,
       title: "Your Truth Journey Begins",
