@@ -189,8 +189,6 @@ const verifyOTP = async () => {
   setIsLoading(false);
 }
 
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
