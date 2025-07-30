@@ -8,6 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 
+// Import Supabase auth utilities
+import { 
+  handleSocialLogin, 
+  handleEmailLogin, 
+  handleEmailSignup, 
+  handlePhoneAuth, 
+  verifyPhoneOTP,
+  resetPassword 
+} from '../utils/authUtils';
+
 const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -170,39 +180,58 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     if (!validateForm()) return;
     
     setIsLoading(true);
+    setErrors({});
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      let result;
       
-      // Mock successful authentication
-      const userData = {
-        id: '1',
-        email: formData.email,
-        firstName: formData.firstName || 'Demo',
-        lastName: formData.lastName || 'User',
-        plan: 'free', // Default to free plan for all new users
-        location: userLocation,
-        authMethod: 'email',
-        truthTestsUsed: 0, // Track usage for free plan limits
-        truthTestsResetDate: new Date().toISOString() // Reset monthly
-      };
+      if (activeTab === 'login') {
+        // Handle email login with Supabase
+        result = await handleEmailLogin(formData.email, formData.password);
+      } else if (activeTab === 'signup') {
+        // Handle email signup with Supabase
+        const metadata = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          fullName: `${formData.firstName} ${formData.lastName}`.trim()
+        };
+        result = await handleEmailSignup(formData.email, formData.password, metadata);
+      }
       
-      // Store user data in localStorage (in real app, use proper session management)
-      localStorage.setItem('kazini_user', JSON.stringify(userData));
-      
-      // Pass isNewUser flag for signup
-      const isNewUser = activeTab === 'signup';
-      onAuthSuccess(userData, isNewUser, false); // isNewUser, isSocialLogin=false
+      if (result && result.user) {
+        // Create user data object for the app
+        const userData = {
+          id: result.user.id,
+          email: result.user.email,
+          firstName: result.user.user_metadata?.first_name || formData.firstName || 'User',
+          lastName: result.user.user_metadata?.last_name || formData.lastName || '',
+          fullName: result.user.user_metadata?.full_name || `${formData.firstName} ${formData.lastName}`.trim(),
+          plan: 'free', // Default to free plan for all new users
+          location: userLocation,
+          authMethod: 'email',
+          truthTestsUsed: 0, // Track usage for free plan limits
+          truthTestsResetDate: new Date().toISOString(), // Reset monthly
+          supabaseUser: result.user // Store Supabase user object
+        };
+        
+        // Store user data in localStorage for app compatibility
+        localStorage.setItem('kazini_user', JSON.stringify(userData));
+        
+        // Pass isNewUser flag for signup
+        const isNewUser = activeTab === 'signup';
+        onAuthSuccess(userData, isNewUser, false); // isNewUser, isSocialLogin=false
+      }
     } catch (error) {
-      setErrors({ general: 'Authentication failed. Please try again.' });
+      console.error('Authentication error:', error);
+      setErrors({ general: error.message || 'Authentication failed. Please try again.' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSocialLogin = async (provider) => {
+  const handleSocialLoginClick = async (provider) => {
     setIsLoading(true);
+    setErrors({});
     
     try {
       if (provider === 'phone') {
@@ -212,31 +241,15 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
         return;
       }
       
-      // Simulate social login API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Use Supabase OAuth for social login
+      await handleSocialLogin(provider);
       
-      // Mock successful social authentication
-      const userData = {
-        id: `${provider}_${Date.now()}`,
-        email: `user@${provider}.com`,
-        firstName: 'Social',
-        lastName: 'User',
-        plan: 'free', // Default to free plan for social logins
-        location: userLocation,
-        provider: provider,
-        authMethod: 'social',
-        truthTestsUsed: 0, // Track usage for free plan limits
-        truthTestsResetDate: new Date().toISOString() // Reset monthly
-      };
+      // Note: The actual authentication will be handled by the auth state change listener
+      // in the App component, so we don't need to handle the response here
       
-      // Store user data in localStorage
-      localStorage.setItem('kazini_user', JSON.stringify(userData));
-      
-      // Always show welcome screen for social logins with mode selection
-      onAuthSuccess(userData, true, true); // isNewUser=true, isSocialLogin=true
     } catch (error) {
-      setErrors({ general: `${provider} login failed. Please try again.` });
-    } finally {
+      console.error('Social login error:', error);
+      setErrors({ general: error.message || `${provider} login failed. Please try again.` });
       setIsLoading(false);
     }
   };
@@ -568,7 +581,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         type="button"
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleSocialLogin('phone')}
+                        onClick={() => handleSocialLoginClick('phone')}
                       >
                         <Phone className="w-4 h-4 mr-2" />
                         Continue with Phone
@@ -580,7 +593,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         type="button"
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleSocialLogin('google')}
+                        onClick={() => handleSocialLoginClick('google')}
                       >
                         <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -595,7 +608,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         type="button"
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleSocialLogin('facebook')}
+                        onClick={() => handleSocialLoginClick('facebook')}
                       >
                         <svg className="w-4 h-4 mr-2" fill="#1877F2" viewBox="0 0 24 24">
                           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -609,7 +622,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         type="button"
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleSocialLogin('apple')}
+                        onClick={() => handleSocialLoginClick('apple')}
                       >
                         <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12.017 0C8.396 0 8.025.044 6.79.207 5.557.37 4.697.723 3.953 1.171c-.744.448-1.376 1.08-1.824 1.824C1.681 3.739 1.328 4.599 1.165 5.832.002 7.067-.042 7.438-.042 11.059s.044 3.992.207 5.227c.163 1.233.516 2.093.964 2.837.448.744 1.08 1.376 1.824 1.824.744.448 1.604.801 2.837.964 1.235.163 1.606.207 5.227.207s3.992-.044 5.227-.207c1.233-.163 2.093-.516 2.837-.964.744-.448 1.376-1.08 1.824-1.824.448-.744.801-1.604.964-2.837.163-1.235.207-1.606.207-5.227s-.044-3.992-.207-5.227c-.163-1.233-.516-2.093-.964-2.837-.448-.744-1.08-1.376-1.824-1.824C15.109 1.328 14.249.975 13.016.812 11.781.649 11.41.605 7.789.605h4.228z"/>

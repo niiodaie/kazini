@@ -3,6 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut, Camera, Calendar, Hash } from 'lucide-react';
 import './App.css';
 
+// Import Supabase and auth utilities
+import supabase from './supabase';
+import { upsertUserProfile, getCurrentUser } from './utils/authUtils';
+
 // Import assets
 import kaziniLogo from './assets/kazinilogo.png';
 import kaziniIcon from './assets/kazini-appicon.png';
@@ -53,6 +57,56 @@ function App() {
       setUser(JSON.parse(savedUser));
     }
 
+    // Supabase auth state listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        
+        if (session && session.user) {
+          try {
+            // Create or update user profile in Supabase
+            const profile = await upsertUserProfile(session.user);
+            
+            // Create user data object for the app
+            const userData = {
+              id: session.user.id,
+              email: session.user.email,
+              firstName: session.user.user_metadata?.first_name || session.user.user_metadata?.name?.split(' ')[0] || 'User',
+              lastName: session.user.user_metadata?.last_name || session.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
+              fullName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+              plan: profile?.plan || 'free',
+              location: { country: '', city: '' },
+              authMethod: session.user.app_metadata?.provider || 'email',
+              provider: session.user.app_metadata?.provider,
+              truthTestsUsed: profile?.truth_tests_used || 0,
+              truthTestsResetDate: profile?.truth_tests_reset_date || new Date().toISOString(),
+              supabaseUser: session.user,
+              supabaseProfile: profile
+            };
+            
+            // Store user data in localStorage for app compatibility
+            localStorage.setItem('kazini_user', JSON.stringify(userData));
+            setUser(userData);
+            
+            // Handle social login welcome flow
+            if (session.user.app_metadata?.provider && session.user.app_metadata.provider !== 'email') {
+              // Show welcome screen for social logins
+              setWelcomeData(userData);
+              setShowWelcome(true);
+            }
+            
+          } catch (error) {
+            console.error('Error handling auth state change:', error);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          // Clear user data on sign out
+          localStorage.removeItem('kazini_user');
+          setUser(null);
+          setCurrentView('home');
+        }
+      }
+    );
+
     // Listen for custom auth events from components
     const handleShowAuth = () => {
       setCurrentView('auth');
@@ -62,6 +116,7 @@ function App() {
     
     return () => {
       window.removeEventListener('showAuth', handleShowAuth);
+      authListener?.subscription?.unsubscribe();
     };
   }, []);
 
