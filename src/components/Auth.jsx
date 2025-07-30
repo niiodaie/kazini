@@ -56,27 +56,57 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     return () => clearInterval(interval);
   }, [otpTimer]);
 
-  // ✅ 1. Send OTP
+  // Format phone number to international format
+  const formatPhoneNumber = (phone) => {
+    // Remove all non-digits
+    const cleaned = phone.replace(/\D/g, '');
+    
+    // If it starts with 1, assume US number
+    if (cleaned.length === 11 && cleaned.startsWith('1')) {
+      return `+${cleaned}`;
+    }
+    // If it's 10 digits, assume US number without country code
+    else if (cleaned.length === 10) {
+      return `+1${cleaned}`;
+    }
+    // If it already starts with +, return as is
+    else if (phone.startsWith('+')) {
+      return phone;
+    }
+    // Default to US format
+    else {
+      return `+1${cleaned}`;
+    }
+  };
+
+  // ✅ 1. Send OTP with proper phone formatting
   const sendOTP = async () => {
     if (!formData.phone) {
       setErrors({ phone: 'Please enter your phone number' });
       return;
     }
 
+    const formattedPhone = formatPhoneNumber(formData.phone);
+    console.log('Sending OTP to:', formattedPhone);
+
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        phone: formData.phone,
+        phone: formattedPhone,
       });
 
       if (error) {
-        setErrors({ phone: 'Failed to send OTP. Please try again.' });
+        console.error('OTP Error:', error);
+        setErrors({ phone: `Failed to send OTP: ${error.message}` });
       } else {
         setOtpSent(true);
         setOtpTimer(60); // 60 second countdown
         setErrors({});
+        // Update formData with formatted phone
+        setFormData(prev => ({ ...prev, phone: formattedPhone }));
       }
     } catch (err) {
+      console.error('OTP Exception:', err);
       setErrors({ phone: 'An unexpected error occurred.' });
     } finally {
       setIsLoading(false);
@@ -144,10 +174,21 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    
+    // Special handling for phone input
+    if (name === 'phone') {
+      // Allow only digits, spaces, hyphens, parentheses, and plus sign
+      const cleaned = value.replace(/[^\d\s\-\(\)\+]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: cleaned
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
     
     // Clear error when user starts typing
     if (errors[name]) {
