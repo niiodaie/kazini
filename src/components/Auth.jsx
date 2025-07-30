@@ -6,9 +6,9 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock } from 'lucide-react';
 
-const Auth = ({ onBack, onAuthSuccess }) => {
+const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
@@ -26,6 +26,7 @@ const Auth = ({ onBack, onAuthSuccess }) => {
   const [userLocation, setUserLocation] = useState({ country: '', city: '' });
   const [otpSent, setOtpSent] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   useEffect(() => {
     // Simulate location detection
@@ -42,38 +43,126 @@ const Auth = ({ onBack, onAuthSuccess }) => {
     detectLocation();
   }, []);
 
+  // OTP Timer countdown
+  useEffect(() => {
+    let interval = null;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer(timer => timer - 1);
+      }, 1000);
+    } else if (otpTimer === 0) {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [otpTimer]);
+
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-    
-    if (activeTab === 'signup') {
-      if (!formData.firstName) {
-        newErrors.firstName = 'First name is required';
+    if (activeTab === 'phone') {
+      if (!formData.phone) {
+        newErrors.phone = 'Phone number is required';
+      } else if (!/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phone)) {
+        newErrors.phone = 'Please enter a valid phone number';
       }
-      if (!formData.lastName) {
-        newErrors.lastName = 'Last name is required';
+      
+      if (otpSent && !formData.otp) {
+        newErrors.otp = 'OTP is required';
+      } else if (otpSent && formData.otp.length !== 6) {
+        newErrors.otp = 'OTP must be 6 digits';
       }
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
+    } else {
+      if (!formData.email) {
+        newErrors.email = 'Email is required';
+      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        newErrors.email = 'Email is invalid';
       }
-      if (!formData.acceptTerms) {
-        newErrors.acceptTerms = 'You must accept the terms and conditions';
+      
+      if (!formData.password) {
+        newErrors.password = 'Password is required';
+      } else if (formData.password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters';
+      }
+      
+      if (activeTab === 'signup') {
+        if (!formData.firstName) {
+          newErrors.firstName = 'First name is required';
+        }
+        if (!formData.lastName) {
+          newErrors.lastName = 'Last name is required';
+        }
+        if (formData.password !== formData.confirmPassword) {
+          newErrors.confirmPassword = 'Passwords do not match';
+        }
+        if (!formData.acceptTerms) {
+          newErrors.acceptTerms = 'You must accept the terms and conditions';
+        }
       }
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const sendOTP = async () => {
+    if (!formData.phone) {
+      setErrors({ phone: 'Please enter your phone number' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Simulate Supabase OTP send
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setOtpSent(true);
+      setOtpTimer(60); // 60 second countdown
+      setErrors({});
+      
+      // In real implementation:
+      // const { error } = await supabase.auth.signInWithOtp({
+      //   phone: formData.phone
+      // });
+      
+    } catch (error) {
+      setErrors({ phone: 'Failed to send OTP. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyOTP = async () => {
+    if (!validateForm()) return;
+    
+    setIsLoading(true);
+    try {
+      // Simulate OTP verification
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock successful verification
+      if (formData.otp === '123456' || formData.otp.length === 6) {
+        setPhoneVerified(true);
+        
+        const userData = {
+          id: '1',
+          phone: formData.phone,
+          firstName: 'Phone',
+          lastName: 'User',
+          plan: 'free',
+          location: userLocation,
+          authMethod: 'phone'
+        };
+        
+        localStorage.setItem('kazini_user', JSON.stringify(userData));
+        onAuthSuccess(userData, true, false); // isNewUser=true, isSocialLogin=false
+      } else {
+        setErrors({ otp: 'Invalid OTP. Please try again.' });
+      }
+    } catch (error) {
+      setErrors({ otp: 'Verification failed. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -92,14 +181,19 @@ const Auth = ({ onBack, onAuthSuccess }) => {
         email: formData.email,
         firstName: formData.firstName || 'Demo',
         lastName: formData.lastName || 'User',
-        plan: 'free',
-        location: userLocation
+        plan: 'free', // Default to free plan for all new users
+        location: userLocation,
+        authMethod: 'email',
+        truthTestsUsed: 0, // Track usage for free plan limits
+        truthTestsResetDate: new Date().toISOString() // Reset monthly
       };
       
       // Store user data in localStorage (in real app, use proper session management)
       localStorage.setItem('kazini_user', JSON.stringify(userData));
       
-      onAuthSuccess(userData);
+      // Pass isNewUser flag for signup
+      const isNewUser = activeTab === 'signup';
+      onAuthSuccess(userData, isNewUser, false); // isNewUser, isSocialLogin=false
     } catch (error) {
       setErrors({ general: 'Authentication failed. Please try again.' });
     } finally {
@@ -127,15 +221,19 @@ const Auth = ({ onBack, onAuthSuccess }) => {
         email: `user@${provider}.com`,
         firstName: 'Social',
         lastName: 'User',
-        plan: 'free',
+        plan: 'free', // Default to free plan for social logins
         location: userLocation,
-        provider: provider
+        provider: provider,
+        authMethod: 'social',
+        truthTestsUsed: 0, // Track usage for free plan limits
+        truthTestsResetDate: new Date().toISOString() // Reset monthly
       };
       
       // Store user data in localStorage
       localStorage.setItem('kazini_user', JSON.stringify(userData));
       
-      onAuthSuccess(userData);
+      // Always show welcome screen for social logins with mode selection
+      onAuthSuccess(userData, true, true); // isNewUser=true, isSocialLogin=true
     } catch (error) {
       setErrors({ general: `${provider} login failed. Please try again.` });
     } finally {
@@ -149,8 +247,10 @@ const Auth = ({ onBack, onAuthSuccess }) => {
       email: 'guest@kazini.com',
       firstName: 'Guest',
       lastName: 'User',
-      plan: 'guest',
-      location: userLocation
+      plan: 'free', // Use free plan for guest users
+      location: userLocation,
+      truthTestsUsed: 0, // Track usage for free plan limits
+      truthTestsResetDate: new Date().toISOString() // Reset monthly
     };
     
     localStorage.setItem('kazini_user', JSON.stringify(guestData));

@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Mic, MicOff, CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Mic, MicOff, CheckCircle, AlertTriangle, XCircle, Loader2, User, Save } from 'lucide-react';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
 
-const TruthTest = ({ onBack }) => {
+const TruthTest = ({ onBack, user }) => {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState(null);
@@ -335,6 +338,33 @@ const TruthTest = ({ onBack }) => {
                       </div>
                     </div>
 
+                    {/* Login Encouragement for Session Saving */}
+                    {!user && (
+                      <Card className="bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-pink-100 rounded-full">
+                                <Save className="w-5 h-5 text-pink-600" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-gray-900">Save Your Results</h3>
+                                <p className="text-sm text-gray-600">Sign in to save this session and track your truth journey</p>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => window.dispatchEvent(new CustomEvent('showAuth'))}
+                              className="bg-pink-600 hover:bg-pink-700 text-white"
+                            >
+                              <User className="w-4 h-4 mr-2" />
+                              Sign In
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Action Buttons */}
                     <div className="flex justify-center gap-4 mt-8">
                       <button
                         onClick={handleReset}

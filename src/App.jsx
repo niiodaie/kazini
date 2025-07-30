@@ -25,6 +25,11 @@ import AIScheduler from './components/AIScheduler';
 import TruthCircle from './components/TruthCircle';
 import ComingSoonModal from './components/ComingSoonModal';
 import LiveDetection from './components/LiveDetection';
+import WelcomeScreen from './components/WelcomeScreen';
+import UpgradePrompt from './components/UpgradePrompt';
+
+// Plan utilities
+import { checkPlanAccess, PLAN_FEATURES } from './plans';
 
 function App() {
   const [currentView, setCurrentView] = useState('home');
@@ -33,6 +38,11 @@ function App() {
   const [showBillingModal, setShowBillingModal] = useState(false);
   const [showComingSoonModal, setShowComingSoonModal] = useState(false);
   const [comingSoonFeature, setComingSoonFeature] = useState('');
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeData, setWelcomeData] = useState(null);
+  const [redirectAfterWelcome, setRedirectAfterWelcome] = useState(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('');
 
   useEffect(() => {
     setIsLoaded(true);
@@ -42,11 +52,61 @@ function App() {
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
+
+    // Listen for custom auth events from components
+    const handleShowAuth = () => {
+      setCurrentView('auth');
+    };
+
+    window.addEventListener('showAuth', handleShowAuth);
+    
+    return () => {
+      window.removeEventListener('showAuth', handleShowAuth);
+    };
   }, []);
 
-  const handleAuthSuccess = (userData) => {
+  const handleAuthSuccess = (userData, isNewUser = false, isSocialLogin = false) => {
     setUser(userData);
-    setCurrentView('home');
+    
+    // Check if we need to show welcome screen
+    if (isNewUser || isSocialLogin) {
+      setWelcomeData({ user: userData, isNewUser, isSocialLogin });
+      setShowWelcome(true);
+      // Store redirect destination if coming from a protected route
+      const urlParams = new URLSearchParams(window.location.search);
+      const nextRoute = urlParams.get('next');
+      if (nextRoute) {
+        setRedirectAfterWelcome(nextRoute);
+      }
+    } else {
+      // Direct login, check for redirect
+      const urlParams = new URLSearchParams(window.location.search);
+      const nextRoute = urlParams.get('next');
+      if (nextRoute) {
+        setCurrentView(nextRoute.replace('/', ''));
+      } else {
+        setCurrentView('home');
+      }
+    }
+  };
+
+  const handleWelcomeComplete = (mode) => {
+    setShowWelcome(false);
+    setWelcomeData(null);
+    
+    if (mode === 'couple') {
+      setCurrentView('couple-mode');
+    } else if (mode === 'individual') {
+      if (redirectAfterWelcome) {
+        setCurrentView(redirectAfterWelcome.replace('/', ''));
+        setRedirectAfterWelcome(null);
+      } else {
+        setCurrentView('home');
+      }
+    } else {
+      // Skip welcome
+      setCurrentView('home');
+    }
   };
 
   const handleLogout = () => {
@@ -54,23 +114,54 @@ function App() {
     setCurrentView('home');
   };
 
-  const handleUpgrade = () => {
+  // Plan gating and upgrade handlers
+  const checkFeatureAccess = (feature) => {
+    if (!user) return false;
+    return checkPlanAccess(user.plan, feature);
+  };
+
+  const handleFeatureAccess = (feature, targetView) => {
+    if (!user) {
+      setCurrentView('auth');
+      return;
+    }
+
+    if (checkFeatureAccess(feature)) {
+      setCurrentView(targetView);
+    } else {
+      setUpgradeFeature(feature);
+      setShowUpgradePrompt(true);
+    }
+  };
+
+  const handleUpgrade = (plan) => {
+    setShowUpgradePrompt(false);
     setShowBillingModal(true);
+  };
+
+  const handleBillingSuccess = (plan) => {
+    // Update user plan
+    const updatedUser = { ...user, plan: plan.id.replace('_yearly', '').replace('_monthly', '') };
+    setUser(updatedUser);
+    localStorage.setItem('kazini_user', JSON.stringify(updatedUser));
+    setShowBillingModal(false);
+  };
+
+  const handleComingSoon = (feature) => {
+    setComingSoonFeature(feature);
+    setShowComingSoonModal(true);
   };
 
   const handleBillingClose = () => {
     setShowBillingModal(false);
   };
 
-  const handleComingSoon = (featureName) => {
-    setComingSoonFeature(featureName);
-    setShowComingSoonModal(true);
-  };
-
   const handleComingSoonClose = () => {
     setShowComingSoonModal(false);
     setComingSoonFeature('');
   };
+
+  const handleWelcomeComplete = (mode) => {
 
   const features = [
     {
@@ -118,6 +209,18 @@ function App() {
   ];
 
   const renderView = () => {
+    // Show welcome screen if needed
+    if (showWelcome && welcomeData) {
+      return (
+        <WelcomeScreen
+          user={welcomeData.user}
+          onComplete={handleWelcomeComplete}
+          isNewUser={welcomeData.isNewUser}
+          isSocialLogin={welcomeData.isSocialLogin}
+        />
+      );
+    }
+
     switch (currentView) {
       case 'auth':
         return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
@@ -134,22 +237,23 @@ function App() {
       case 'couple-mode':
         // Check authentication for couple mode
         if (!user) {
-          setCurrentView('auth');
-          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
+          // Redirect to auth with next parameter
+          window.history.replaceState(null, '', '?next=couple-mode');
+          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} redirectTo="couple-mode" />;
         }
         return <CoupleModeSelector onBack={() => setCurrentView('home')} onNavigate={setCurrentView} user={user} />;
       case 'couple-live':
         // Check authentication for live mode
         if (!user) {
-          setCurrentView('auth');
-          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
+          window.history.replaceState(null, '', '?next=couple-live');
+          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} redirectTo="couple-live" />;
         }
         return <LiveSessionSetup onBack={() => setCurrentView('couple-mode')} user={user} />;
       case 'couple-async':
         // Check authentication for async mode
         if (!user) {
-          setCurrentView('auth');
-          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
+          window.history.replaceState(null, '', '?next=couple-async');
+          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} redirectTo="couple-async" />;
         }
         return <AsyncLinkGenerator onBack={() => setCurrentView('couple-mode')} user={user} />;
       case 'trust-index':
@@ -284,11 +388,14 @@ function App() {
                   </button>
                   
                   <button
-                    onClick={() => user ? setCurrentView('couple-mode') : setCurrentView('auth')}
+                    onClick={() => handleFeatureAccess(PLAN_FEATURES.COUPLE_MODE, 'couple-mode')}
                     className="border-2 border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-[#3B2A4A] transition-all duration-300 flex items-center gap-3 couple-glow"
                   >
                     <Users className="w-6 h-6" />
                     Couple Mode
+                    {user && user.plan === 'free' && (
+                      <span className="text-xs bg-yellow-500 text-black px-2 py-1 rounded-full ml-2">Pro</span>
+                    )}
                   </button>
                   
                   <button
@@ -562,12 +669,19 @@ function App() {
       <BillingModal 
         isOpen={showBillingModal} 
         onClose={handleBillingClose}
-        onUpgrade={handleUpgrade}
+        onUpgrade={handleBillingSuccess}
       />
       <ComingSoonModal 
         isOpen={showComingSoonModal} 
         onClose={handleComingSoonClose}
         feature={comingSoonFeature}
+      />
+      <UpgradePrompt
+        isOpen={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
+        feature={upgradeFeature}
+        onUpgrade={handleUpgrade}
+        currentPlan={user?.plan || 'free'}
       />
     </AnimatePresence>
   );
