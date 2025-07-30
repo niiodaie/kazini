@@ -74,6 +74,7 @@ function App() {
               firstName: session.user.user_metadata?.first_name || session.user.user_metadata?.name?.split(' ')[0] || 'User',
               lastName: session.user.user_metadata?.last_name || session.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
               fullName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+
               plan: profile?.plan || 'free',
               location: { country: '', city: '' },
               authMethod: session.user.app_metadata?.provider || 'email',
