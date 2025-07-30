@@ -7,9 +7,6 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock } from 'lucide-react';
-import { supabase } from '../utils/supabase';
-
-
 
 // Import Supabase auth utilities
 import { 
@@ -144,44 +141,39 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     }
   };
 
- const verifyOTP = async () => {
-  if (!validateForm()) return;
-
-  setIsLoading(true);
-  try {
-    const { error } = await supabase.auth.verifyOtp({
-      phone: formData.phone,
-      token: formData.otp,
-      type: 'sms',
-    });
-
-    if (error) {
-      console.error('OTP verification failed:', error.message);
-      setErrors({ otp: 'Invalid or expired OTP' });
-      return;
+  const verifyOTP = async () => {
+    if (!validateForm()) return;
+    
+    setIsLoading(true);
+    try {
+      // Simulate OTP verification
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock successful verification
+      if (formData.otp === '123456' || formData.otp.length === 6) {
+        setPhoneVerified(true);
+        
+        const userData = {
+          id: '1',
+          phone: formData.phone,
+          firstName: 'Phone',
+          lastName: 'User',
+          plan: 'free',
+          location: userLocation,
+          authMethod: 'phone'
+        };
+        
+        localStorage.setItem('kazini_user', JSON.stringify(userData));
+        onAuthSuccess(userData, true, false); // isNewUser=true, isSocialLogin=false
+      } else {
+        setErrors({ otp: 'Invalid OTP. Please try again.' });
+      }
+    } catch (error) {
+      setErrors({ otp: 'Verification failed. Please try again.' });
+    } finally {
+      setIsLoading(false);
     }
-
-    setPhoneVerified(true);
-
-    const userData = {
-      id: '1',
-      phone: formData.phone,
-      firstName: 'Phone',
-      lastName: 'User',
-      plan: 'free',
-      location: userLocation,
-      authMethod: 'phone',
-    };
-
-    localStorage.setItem('kazini_user', JSON.stringify(userData));
-    onAuthSuccess(userData, true, false);
-  } catch (error) {
-    setErrors({ otp: 'Verification failed. Please try again.' });
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -347,47 +339,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                     <TabsTrigger value="phone">Phone</TabsTrigger>
                   </TabsList>
                   
-                  <form
-  onSubmit={(e) => {
-    e.preventDefault();
-    if (activeTab === 'phone') {
-      if (!otpSent) {
-       
-
-const sendOTP = async () => {
-  if (!formData.phone) {
-    setErrors({ phone: 'Please enter your phone number' });
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: formData.phone,
-    });
-
-    if (error) throw error;
-
-    setOtpSent(true);
-    setOtpTimer(60); // Start countdown timer
-    setErrors({});
-  } catch (err) {
-    console.error('Error sending OTP:', err.message);
-    setErrors({ phone: err.message || 'Failed to send OTP' });
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-      } else {
-        verifyOTP();
-      }
-    } else {
-      handleSubmit(e);
-    }
-  }}
->
-
+                  <form onSubmit={handleSubmit}>
                     <TabsContent value="login" className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
@@ -594,26 +546,81 @@ const sendOTP = async () => {
                     
                     {errors.general && (
                       <div className="text-sm text-red-500 text-center mb-4">
-                        {errors.general}
-                      </div>
-                    )}
-                    
-                    <Button
-                      type="submit"
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                        <Button
+                      type="button"
+                      onClick={async () => {
+                        if (!otpSent) {
+                          // Send OTP
+                          if (!formData.phone) {
+                            setErrors({ phone: 'Phone number is required' });
+                            return;
+                          }
+                          
+                          setIsLoading(true);
+                          try {
+                            await handlePhoneAuth(formData.phone);
+                            setOtpSent(true);
+                            setOtpTimer(60); // 60 second countdown
+                            setErrors({});
+                          } catch (error) {
+                            setErrors({ phone: error.message });
+                          } finally {
+                            setIsLoading(false);
+                          }
+                        } else {
+                          // Verify OTP
+                          if (!formData.otp) {
+                            setErrors({ otp: 'OTP is required' });
+                            return;
+                          }
+                          
+                          setIsLoading(true);
+                          try {
+                            const result = await verifyPhoneOTP(formData.phone, formData.otp);
+                            
+                            if (result && result.user) {
+                              // Create user data object for the app
+                              const userData = {
+                                id: result.user.id,
+                                email: result.user.email,
+                                phone: result.user.phone,
+                                displayName: result.user.user_metadata?.display_name || result.user.phone || 'User',
+                                plan: 'free',
+                                location: userLocation,
+                                authMethod: 'phone',
+                                truthTestsUsed: 0,
+                                truthTestsResetDate: new Date().toISOString(),
+                                supabaseUser: result.user
+                              };
+                              
+                              localStorage.setItem('kazini_user', JSON.stringify(userData));
+                              setPhoneVerified(true);
+                              
+                              // Call success handler
+                              if (onAuthSuccess) {
+                                onAuthSuccess(userData, redirectTo);
+                              }
+                            }
+                          } catch (error) {
+                            setErrors({ otp: error.message });
+                          } finally {
+                            setIsLoading(false);
+                          }
+                        }
+                      }}
                       disabled={isLoading}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     >
                       {isLoading ? (
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {activeTab === 'login' ? 'Signing In...' : 'Creating Account...'}
+                          {!otpSent ? 'Sending OTP...' : 'Verifying...'}
                         </div>
                       ) : (
-                        activeTab === 'login' ? 'Sign In' : 'Create Account'
+                        !otpSent ? 'Send OTP' : 'Verify OTP'
                       )}
                     </Button>
-                  </form>
-                  
+                    
                     <div className="mt-6">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">

@@ -4,7 +4,7 @@ import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, Trend
 import './App.css';
 
 // Import Supabase and auth utilities
-import { supabase } from './utils/supabase';
+import supabase from './supabase';
 import { upsertUserProfile, getCurrentUser } from './utils/authUtils';
 
 // Import assets
