@@ -172,18 +172,15 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       authMethod: 'phone',
     };
 
-        
-        localStorage.setItem('kazini_user', JSON.stringify(userData));
-        onAuthSuccess(userData, true, false); // isNewUser=true, isSocialLogin=false
-      } else {
-        setErrors({ otp: 'Invalid OTP. Please try again.' });
-      }
-    } catch (error) {
-      setErrors({ otp: 'Verification failed. Please try again.' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    localStorage.setItem('kazini_user', JSON.stringify(userData));
+    onAuthSuccess(userData, true, false);
+  } catch (error) {
+    setErrors({ otp: 'Verification failed. Please try again.' });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
