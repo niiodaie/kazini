@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock } from 'lucide-react';
-import { supabase } from './utils/supabase';
+import { supabase } from '../utils/supabase';
 
 
 
