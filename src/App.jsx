@@ -161,8 +161,6 @@ function App() {
     setComingSoonFeature('');
   };
 
-  const handleWelcomeComplete = (mode) => {
-
   const features = [
     {
       icon: <Heart className="w-8 h-8" />,
