@@ -7,6 +7,7 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock } from 'lucide-react';
+import { supabase } from '../utils/supabaseClient'; // ✅ make sure this import is present
 
 // Import Supabase auth utilities
 import { 
@@ -344,7 +345,33 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     e.preventDefault();
     if (activeTab === 'phone') {
       if (!otpSent) {
-        sendOTP();
+       
+
+const sendOTP = async () => {
+  if (!formData.phone) {
+    setErrors({ phone: 'Please enter your phone number' });
+    return;
+  }
+
+  setIsLoading(true);
+  try {
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: formData.phone,
+    });
+
+    if (error) throw error;
+
+    setOtpSent(true);
+    setOtpTimer(60); // Start countdown timer
+    setErrors({});
+  } catch (err) {
+    console.error('Error sending OTP:', err.message);
+    setErrors({ phone: err.message || 'Failed to send OTP' });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
       } else {
         verifyOTP();
       }
