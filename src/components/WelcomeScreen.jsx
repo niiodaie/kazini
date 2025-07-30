@@ -12,7 +12,7 @@ const WelcomeScreen = ({ user, onComplete, isNewUser = false, isSocialLogin = fa
     {
       icon: Heart,
       title: "Welcome to Kazini!",
-      subtitle: `Hi ${user?.firstName || 'there'}! 💕`,
+     subtitle: `Welcome ${getFirstName(user)}! 🎉`
       description: "You've just joined thousands of couples discovering deeper emotional truth and authentic connections.",
       action: "Get Started",
       color: "from-pink-500 to-red-500"
