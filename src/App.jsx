@@ -1,5 +1,3 @@
-// PATCHED App.jsx with location + language detection and fixes
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut, Camera, Calendar, Hash } from 'lucide-react';
@@ -110,8 +108,6 @@ function App() {
       authListener?.subscription?.unsubscribe();
     };
   }, []);
-
-  // ... rest of the App component untouched and clean
 
   return (
     <AnimatePresence mode="wait">
