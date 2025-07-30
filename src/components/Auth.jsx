@@ -609,11 +609,13 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         variant="outline"
                         className="w-full"
                         onClick={() => handleSocialLoginClick('facebook')}
+                        disabled
+                        style={{ opacity: 0.5, cursor: 'not-allowed' }}
                       >
                         <svg className="w-4 h-4 mr-2" fill="#1877F2" viewBox="0 0 24 24">
                           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                         </svg>
-                        Facebook
+                        Facebook (Coming Soon)
                       </Button>
                     </div>
                     
@@ -623,11 +625,13 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         variant="outline"
                         className="w-full"
                         onClick={() => handleSocialLoginClick('apple')}
+                        disabled
+                        style={{ opacity: 0.5, cursor: 'not-allowed' }}
                       >
                         <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M12.017 0C8.396 0 8.025.044 6.79.207 5.557.37 4.697.723 3.953 1.171c-.744.448-1.376 1.08-1.824 1.824C1.681 3.739 1.328 4.599 1.165 5.832.002 7.067-.042 7.438-.042 11.059s.044 3.992.207 5.227c.163 1.233.516 2.093.964 2.837.448.744 1.08 1.376 1.824 1.824.744.448 1.604.801 2.837.964 1.235.163 1.606.207 5.227.207s3.992-.044 5.227-.207c1.233-.163 2.093-.516 2.837-.964.744-.448 1.376-1.08 1.824-1.824.448-.744.801-1.604.964-2.837.163-1.235.207-1.606.207-5.227s-.044-3.992-.207-5.227c-.163-1.233-.516-2.093-.964-2.837-.448-.744-1.08-1.376-1.824-1.824C15.109 1.328 14.249.975 13.016.812 11.781.649 11.41.605 7.789.605h4.228z"/>
                         </svg>
-                        Apple
+                        Apple (Coming Soon)
                       </Button>
                       
                       <Button

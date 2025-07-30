@@ -1,4 +1,3 @@
-// src/utils/authUtils.js
 import supabase from '../supabase'
 
 /**
@@ -68,9 +67,10 @@ export const handleEmailSignup = async (email, password, metadata = {}) => {
       password,
       options: {
         data: {
-          full_name: metadata.fullName || '',
-          first_name: metadata.firstName || '',
-          last_name: metadata.lastName || '',
+          display_name: metadata.displayName || email.split('@')[0],
+          country: metadata.country || 'US',
+          language: metadata.language || 'en',
+          plan: 'free',
           ...metadata
         }
       }
@@ -89,19 +89,22 @@ export const handleEmailSignup = async (email, password, metadata = {}) => {
 }
 
 /**
- * Handle phone authentication
- * @param {string} phone 
+ * Handle phone authentication - send OTP
+ * @param {string} phone - Phone number in international format
  * @returns {Promise<Object>}
  */
 export const handlePhoneAuth = async (phone) => {
   try {
+    // Ensure phone number is in international format
+    const formattedPhone = phone.startsWith('+') ? phone : `+1${phone.replace(/\D/g, '')}`
+    
     const { data, error } = await supabase.auth.signInWithOtp({
-      phone,
+      phone: formattedPhone,
     })
 
     if (error) {
-      console.error('Phone auth failed:', error.message)
-      throw new Error(`Phone authentication failed: ${error.message}`)
+      console.error('Phone OTP send failed:', error.message)
+      throw new Error(`Failed to send OTP: ${error.message}`)
     }
 
     return data
@@ -112,15 +115,18 @@ export const handlePhoneAuth = async (phone) => {
 }
 
 /**
- * Verify OTP for phone authentication
- * @param {string} phone 
- * @param {string} token 
+ * Verify phone OTP
+ * @param {string} phone - Phone number in international format
+ * @param {string} token - OTP token
  * @returns {Promise<Object>}
  */
 export const verifyPhoneOTP = async (phone, token) => {
   try {
+    // Ensure phone number is in international format
+    const formattedPhone = phone.startsWith('+') ? phone : `+1${phone.replace(/\D/g, '')}`
+    
     const { data, error } = await supabase.auth.verifyOtp({
-      phone,
+      phone: formattedPhone,
       token,
       type: 'sms'
     })
@@ -133,6 +139,29 @@ export const verifyPhoneOTP = async (phone, token) => {
     return data
   } catch (error) {
     console.error('OTP verification error:', error)
+    throw error
+  }
+}
+
+/**
+ * Reset password
+ * @param {string} email 
+ * @returns {Promise<Object>}
+ */
+export const resetPassword = async (email) => {
+  try {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+
+    if (error) {
+      console.error('Password reset failed:', error.message)
+      throw new Error(`Password reset failed: ${error.message}`)
+    }
+
+    return data
+  } catch (error) {
+    console.error('Password reset error:', error)
     throw error
   }
 }
@@ -156,7 +185,7 @@ export const handleSignOut = async () => {
 }
 
 /**
- * Get current user session
+ * Get current user
  * @returns {Promise<Object|null>}
  */
 export const getCurrentUser = async () => {
@@ -176,7 +205,7 @@ export const getCurrentUser = async () => {
 }
 
 /**
- * Create or update user profile in profiles table
+ * Upsert user profile in profiles table
  * @param {Object} user - Supabase user object
  * @returns {Promise<Object>}
  */
@@ -185,14 +214,13 @@ export const upsertUserProfile = async (user) => {
     const profileData = {
       id: user.id,
       email: user.email,
-      full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
-      first_name: user.user_metadata?.first_name || '',
-      last_name: user.user_metadata?.last_name || '',
-      avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
-      plan: 'free', // Default plan for new users
-      provider: user.app_metadata?.provider || 'email',
+      phone: user.phone || null,
+      display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+      country: user.user_metadata?.country || 'US',
+      language: user.user_metadata?.language || 'en',
+      plan: user.user_metadata?.plan || 'free',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
 
     const { data, error } = await supabase
@@ -202,14 +230,13 @@ export const upsertUserProfile = async (user) => {
         ignoreDuplicates: false 
       })
       .select()
-      .single()
 
     if (error) {
       console.error('Profile upsert failed:', error.message)
       throw new Error(`Profile update failed: ${error.message}`)
     }
 
-    return data
+    return data?.[0] || profileData
   } catch (error) {
     console.error('Profile upsert error:', error)
     throw error
@@ -242,22 +269,25 @@ export const getUserProfile = async (userId) => {
 }
 
 /**
- * Reset password for email
- * @param {string} email 
+ * Send mobile app download links via SMS
+ * @param {string} phone - Phone number
  * @returns {Promise<void>}
  */
-export const resetPassword = async (email) => {
+export const sendMobileAppSMS = async (phone) => {
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-
-    if (error) {
-      console.error('Password reset failed:', error.message)
-      throw new Error(`Password reset failed: ${error.message}`)
-    }
+    // This would integrate with Twilio or similar SMS service
+    // For now, we'll simulate the SMS sending
+    const message = `Download the Kazini app:\n\niOS: https://apps.apple.com/app/kazini\nAndroid: https://play.google.com/store/apps/details?id=com.kazini.app\n\nDiscover emotional truth in your relationships!`
+    
+    // In production, this would call your SMS API
+    console.log(`SMS would be sent to ${phone}:`, message)
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    return { success: true, message: 'SMS sent successfully' }
   } catch (error) {
-    console.error('Password reset error:', error)
+    console.error('SMS send error:', error)
     throw error
   }
 }

@@ -24,11 +24,11 @@ import {
 const UserProfile = ({ user, onBack, onLogout, onUpgrade, onNavigate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    firstName: user.firstName,
-    lastName: user.lastName,
+    displayName: user.displayName || user.firstName || user.email?.split('@')[0] || 'User',
     email: user.email,
+    country: user.country || 'US',
+    language: user.language || 'en',
     notifications: true,
-    language: 'en',
     timezone: 'UTC-5'
   });
 
@@ -108,7 +108,7 @@ const UserProfile = ({ user, onBack, onLogout, onUpgrade, onNavigate }) => {
                   </div>
                   <div>
                     <h3 className="text-white font-semibold text-lg mb-1">
-                      Welcome to your relationship journey, {user.firstName}! 💕
+                      Welcome to your relationship journey, {user.displayName || user.firstName || 'User'}! 💕
                     </h3>
                     <p className="text-white/80 text-sm">
                       Kazini is here to help you build deeper, more authentic connections. 
@@ -132,11 +132,11 @@ const UserProfile = ({ user, onBack, onLogout, onUpgrade, onNavigate }) => {
                 <CardHeader className="text-center">
                   <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-white font-bold text-2xl">
-                      {user.firstName?.[0]}{user.lastName?.[0]}
+                      {(user.displayName || user.firstName || user.email?.split('@')[0] || 'U')[0].toUpperCase()}
                     </span>
                   </div>
                   <CardTitle className="text-xl">
-                    {user.firstName} {user.lastName}
+                    {user.displayName || user.firstName || user.email?.split('@')[0] || 'User'}
                   </CardTitle>
                   <div className="flex justify-center">
                     {getPlanBadge()}
@@ -210,26 +210,15 @@ const UserProfile = ({ user, onBack, onLogout, onUpgrade, onNavigate }) => {
                         </Button>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="firstName">First Name</Label>
-                          <Input
-                            id="firstName"
-                            value={profileData.firstName}
-                            onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-                            disabled={!isEditing}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="lastName">Last Name</Label>
-                          <Input
-                            id="lastName"
-                            value={profileData.lastName}
-                            onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-                            disabled={!isEditing}
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="displayName">Display Name</Label>
+                        <Input
+                          id="displayName"
+                          value={profileData.displayName}
+                          onChange={(e) => setProfileData(prev => ({ ...prev, displayName: e.target.value }))}
+                          disabled={!isEditing}
+                          placeholder="Enter your display name"
+                        />
                       </div>
                       
                       <div className="space-y-2">
