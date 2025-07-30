@@ -339,7 +339,21 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                     <TabsTrigger value="phone">Phone</TabsTrigger>
                   </TabsList>
                   
-                  <form onSubmit={handleSubmit}>
+                  <form
+  onSubmit={(e) => {
+    e.preventDefault();
+    if (activeTab === 'phone') {
+      if (!otpSent) {
+        sendOTP();
+      } else {
+        verifyOTP();
+      }
+    } else {
+      handleSubmit(e);
+    }
+  }}
+>
+
                     <TabsContent value="login" className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
