@@ -110,58 +110,73 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       }
     }
     
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+   setErrors(newErrors);
+return Object.keys(newErrors).length === 0;
+};
 
-  const sendOTP = async () => {
-    if (!formData.phone) {
-      setErrors({ phone: 'Please enter your phone number' });
+const sendOTP = async () => {
+  if (!formData.phone) {
+    setErrors({ phone: 'Please enter your phone number' });
+    return;
+  }
+
+  setIsLoading(true);
+  try {
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: formData.phone
+    });
+
+    if (error) {
+      setErrors({ phone: error.message });
       return;
     }
 
-    setIsLoading(true);
-    try {
-      // Simulate Supabase OTP send
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setOtpSent(true);
-      setOtpTimer(60); // 60 second countdown
-      setErrors({});
-      
-      // In real implementation:
-      // const { error } = await supabase.auth.signInWithOtp({
-      //   phone: formData.phone
-      // });
-      
-    } catch (error) {
-      setErrors({ phone: 'Failed to send OTP. Please try again.' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setOtpSent(true);
+    setOtpTimer(60); // 60 second countdown
+    setErrors({});
+  } catch (error) {
+    setErrors({ phone: 'Failed to send OTP. Please try again.' });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const verifyOTP = async () => {
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    try {
-      // Simulate OTP verification
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock successful verification
-      if (formData.otp === '123456' || formData.otp.length === 6) {
-        setPhoneVerified(true);
-        
-        const userData = {
-          id: '1',
-          phone: formData.phone,
-          firstName: 'Phone',
-          lastName: 'User',
-          plan: 'free',
-          location: userLocation,
-          authMethod: 'phone'
-        };
+const verifyOTP = async () => {
+  if (!validateForm()) return;
+
+  setIsLoading(true);
+  try {
+    const { error } = await supabase.auth.verifyOtp({
+      phone: formData.phone,
+      token: formData.otp,
+      type: 'sms'
+    });
+
+    if (error) {
+      setErrors({ otp: error.message || 'Invalid code. Please try again.' });
+      return;
+    }
+
+    setPhoneVerified(true);
+
+    const userData = {
+      id: '1',
+      phone: formData.phone,
+      firstName: 'Phone',
+      lastName: 'User',
+      plan: 'free',
+      location: userLocation,
+      authMethod: 'phone'
+    };
+
+    // Optional: store userData in DB or localStorage
+  } catch (error) {
+    setErrors({ otp: 'OTP verification failed. Please try again.' });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
         
         localStorage.setItem('kazini_user', JSON.stringify(userData));
         onAuthSuccess(userData, true, false); // isNewUser=true, isSocialLogin=false
