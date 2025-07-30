@@ -178,16 +178,17 @@ const verifyOTP = async () => {
 };
 
         
-        if (someCondition) {
-  localStorage.setItem('kazini_user', JSON.stringify(userData));
-  onAuthSuccess(userData, true, false);
-} else {
-  setErrors({ otp: 'Invalid OTP. Please try again.' });
+ try {
+  if (someCondition) {
+    localStorage.setItem('kazini_user', JSON.stringify(userData));
+    onAuthSuccess(userData, true, false);
+  } else {
+    setErrors({ otp: 'Invalid OTP. Please try again.' });
+  }
+} finally {
+  setIsLoading(false);
 }
 
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSubmit = async (e) => {
