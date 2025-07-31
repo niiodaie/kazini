@@ -49,40 +49,44 @@ function App() {
   const [upgradeFeature, setUpgradeFeature] = useState('');
 
   import { useEffect } from "react";
+import { supabase } from './supabaseClient'; // adjust path as needed
 
 function AuthHandler() {
- useEffect(() => {
-  const hash = window.location.hash;
+  useEffect(() => {
+    const hash = window.location.hash;
 
-  if (hash.includes("access_token") && hash.includes("refresh_token")) {
-    const accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
-    const refreshToken = new URLSearchParams(hash.substring(1)).get("refresh_token");
+    if (hash.includes("access_token") && hash.includes("refresh_token")) {
+      const accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
+      const refreshToken = new URLSearchParams(hash.substring(1)).get("refresh_token");
 
-    if (accessToken && refreshToken) {
-      // Store tokens if needed
-      localStorage.setItem("kazini_token", accessToken);
-      localStorage.setItem("kazini_refresh_token", refreshToken);
+      if (accessToken && refreshToken) {
+        // Store tokens
+        localStorage.setItem("kazini_token", accessToken);
+        localStorage.setItem("kazini_refresh_token", refreshToken);
 
-      // Set Supabase session
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error("Supabase setSession error:", error);
-        } else {
-          console.log("Supabase session established via URL token.");
-          // Clean URL
-          window.history.replaceState(null, null, window.location.pathname);
-        }
-      });
+        // Set Supabase session
+        supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }).then(({ error }) => {
+          if (error) {
+            console.error("Supabase setSession error:", error);
+          } else {
+            console.log("Supabase session established via URL token.");
+            // Clean URL
+            window.history.replaceState(null, null, window.location.pathname);
+            window.location.href = "/dashboard"; // Optional redirect
+          }
+        });
+      }
     }
-  }
-}, []);
-
+  }, []);
 
   return null; // or loading spinner
 }
+
+export default AuthHandler;
+
 
 
   useEffect(() => {
