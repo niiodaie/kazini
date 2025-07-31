@@ -29,7 +29,7 @@ import ComingSoonModal from './components/ComingSoonModal';
 import LiveDetection from './components/LiveDetection';
 import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
-
+import { handleAuthTokens } from './utils/authHandler';
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
 
 function App() {
@@ -45,28 +45,31 @@ function App() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
 
-  // Handle URL hash tokens and session setup
   useEffect(() => {
-    setIsLoaded(true);
-    
-    // Initialize authentication
-    initializeAuth(setUser);
-    
-    // Setup auth state listener
-    const authListener = setupAuthListener(setUser);
+  setIsLoaded(true);
 
-    // Listen for custom auth events
-    const handleShowAuth = (event) => {
-      setCurrentView('auth');
-    };
+  // ✅ Handle OAuth redirect tokens (e.g. from Google)
+  handleAuthTokens();
 
-    window.addEventListener('showAuth', handleShowAuth);
+  // ✅ Initialize authentication
+  initializeAuth(setUser);
 
-    return () => {
-      authListener?.subscription?.unsubscribe();
-      window.removeEventListener('showAuth', handleShowAuth);
-    };
-  }, []);
+  // ✅ Setup auth state listener
+  const authListener = setupAuthListener(setUser);
+
+  // ✅ Custom event listener (e.g. show login modal)
+  const handleShowAuth = (event) => {
+    setCurrentView('auth');
+  };
+
+  window.addEventListener('showAuth', handleShowAuth);
+
+  return () => {
+    authListener?.subscription?.unsubscribe();
+    window.removeEventListener('showAuth', handleShowAuth);
+  };
+}, []);
+
 
   const handleAuthSuccess = (userData, isNewUser = false, showWelcomeScreen = false) => {
     setUser(userData);
