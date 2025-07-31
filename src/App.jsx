@@ -503,16 +503,17 @@ function App() {
     );
   };
 
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center">
-        <div className="text-center">
-          <img src={kaziniIcon} alt="Kazini" className="w-16 h-16 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-600">Loading Kazini...</p>
-        </div>
+  if (!isLoaded || authInitializing) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center">
+      <div className="text-center">
+        <img src={kaziniIcon} alt="Kazini" className="w-16 h-16 mx-auto mb-4 animate-pulse" />
+        <p className="text-gray-600">Initializing Kazini...</p>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   return (
     <div className="App">
