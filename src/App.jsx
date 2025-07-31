@@ -31,6 +31,8 @@ import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
 import { handleAuthTokens } from './utils/authHandler';
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
+const [authInitializing, setAuthInitializing] = useState(true);
+
 
 function App() {
   const [currentView, setCurrentView] = useState(ROUTES.HOME);
@@ -45,30 +47,35 @@ function App() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
 
-  useEffect(() => {
-  setIsLoaded(true);
+ useEffect(() => {
+  const runAuth = async () => {
+    setIsLoaded(true);
 
-  // ✅ Handle OAuth redirect tokens (e.g. from Google)
-  handleAuthTokens();
+    // ✅ Handle OAuth redirect tokens (e.g. from Google)
+    await handleAuthTokens(); // Ensure session is set before rendering
 
-  // ✅ Initialize authentication
-  initializeAuth(setUser);
+    // ✅ Initialize authentication and fetch user
+    initializeAuth(setUser);
 
-  // ✅ Setup auth state listener
-  const authListener = setupAuthListener(setUser);
+    // ✅ Setup auth state listener
+    const authListener = setupAuthListener(setUser);
 
-  // ✅ Custom event listener (e.g. show login modal)
-  const handleShowAuth = (event) => {
-    setCurrentView('auth');
+    // ✅ Custom event listener
+    const handleShowAuth = () => setCurrentView('auth');
+    window.addEventListener('showAuth', handleShowAuth);
+
+    // Cleanup
+    return () => {
+      authListener?.subscription?.unsubscribe();
+      window.removeEventListener('showAuth', handleShowAuth);
+    };
   };
 
-  window.addEventListener('showAuth', handleShowAuth);
-
-  return () => {
-    authListener?.subscription?.unsubscribe();
-    window.removeEventListener('showAuth', handleShowAuth);
-  };
+  runAuth().finally(() => {
+    setAuthInitializing(false); // New flag to prevent early render
+  });
 }, []);
+
 
 
   const handleAuthSuccess = (userData, isNewUser = false, showWelcomeScreen = false) => {
