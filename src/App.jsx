@@ -50,32 +50,37 @@ function App() {
 
  useEffect(() => {
   const runAuth = async () => {
-    setIsLoaded(true);
+    try {
+      setIsLoaded(true);
 
-    // ✅ Step 1: Handle OAuth redirect tokens
-    await handleAuthTokens();
+      // ✅ Handle OAuth redirect tokens (e.g. from Google)
+      await handleAuthTokens(); // Make sure session is handled
 
-    // ✅ Step 2: Fetch and set user
-    await initializeAuth(setUser); // ← This is important!
+      // ✅ Initialize authentication and fetch user (await this!)
+      await initializeAuth(setUser);
 
-    // ✅ Step 3: Setup auth state listener
-    const authListener = setupAuthListener(setUser);
+      // ✅ Setup auth state listener
+      const authListener = setupAuthListener(setUser);
 
-    // ✅ Optional: listen for view toggles
-    const handleShowAuth = () => setCurrentView('auth');
-    window.addEventListener('showAuth', handleShowAuth);
+      // ✅ Custom event listener (for modals or redirects)
+      const handleShowAuth = () => setCurrentView('auth');
+      window.addEventListener('showAuth', handleShowAuth);
 
-    // Cleanup listeners
-    return () => {
-      authListener?.subscription?.unsubscribe();
-      window.removeEventListener('showAuth', handleShowAuth);
-    };
+      // Cleanup
+      return () => {
+        authListener?.subscription?.unsubscribe();
+        window.removeEventListener('showAuth', handleShowAuth);
+      };
+    } catch (err) {
+      console.error("🔴 Auth initialization failed:", err);
+    } finally {
+      setAuthInitializing(false); // Allow page to proceed
+    }
   };
 
-  runAuth().finally(() => {
-    setAuthInitializing(false);
-  });
+  runAuth();
 }, []);
+
 
 
 
