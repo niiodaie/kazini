@@ -31,7 +31,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
 import { handleAuthTokens } from './utils/authHandler';
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
-const [authInitializing, setAuthInitializing] = useState(true);
+
 
 
 function App() {
@@ -46,6 +46,7 @@ function App() {
   const [redirectAfterWelcome, setRedirectAfterWelcome] = useState(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
+  const [authInitializing, setAuthInitializing] = useState(true);
 
  useEffect(() => {
   const runAuth = async () => {
