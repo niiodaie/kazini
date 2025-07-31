@@ -52,20 +52,20 @@ function App() {
   const runAuth = async () => {
     setIsLoaded(true);
 
-    // ✅ Handle OAuth redirect tokens (e.g. from Google)
-    await handleAuthTokens(); // Ensure session is set before rendering
+    // ✅ Step 1: Handle OAuth redirect tokens
+    await handleAuthTokens();
 
-    // ✅ Initialize authentication and fetch user
-    initializeAuth(setUser);
+    // ✅ Step 2: Fetch and set user
+    await initializeAuth(setUser); // ← This is important!
 
-    // ✅ Setup auth state listener
+    // ✅ Step 3: Setup auth state listener
     const authListener = setupAuthListener(setUser);
 
-    // ✅ Custom event listener
+    // ✅ Optional: listen for view toggles
     const handleShowAuth = () => setCurrentView('auth');
     window.addEventListener('showAuth', handleShowAuth);
 
-    // Cleanup
+    // Cleanup listeners
     return () => {
       authListener?.subscription?.unsubscribe();
       window.removeEventListener('showAuth', handleShowAuth);
@@ -73,9 +73,10 @@ function App() {
   };
 
   runAuth().finally(() => {
-    setAuthInitializing(false); // New flag to prevent early render
+    setAuthInitializing(false);
   });
 }, []);
+
 
 
 
