@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, LogOut, Camera, Calendar, Hash } from 'lucide-react';
+import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, TrendingUp, User, Camera, Calendar, Hash } from 'lucide-react';
 import './App.css';
 
-// Import Supabase and auth utilities
 import { supabase } from './supabase';
 import { upsertUserProfile, getCurrentUser } from './utils/authUtils';
 
-// Import assets
 import kaziniLogo from './assets/kazinilogo.png';
 import kaziniIcon from './assets/kazini-appicon.png';
 
-// Components
 import TruthTest from './components/TruthTest';
 import CoupleMode from './components/CoupleMode';
 import CoupleModeSelector from './components/CoupleModeSelector';
@@ -32,7 +29,6 @@ import LiveDetection from './components/LiveDetection';
 import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
 
-// Plan utilities
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
 
 function App() {
@@ -60,11 +56,9 @@ function AuthHandler() {
       const refreshToken = new URLSearchParams(hash.substring(1)).get("refresh_token");
 
       if (accessToken && refreshToken) {
-        // Store tokens
         localStorage.setItem("kazini_token", accessToken);
         localStorage.setItem("kazini_refresh_token", refreshToken);
 
-        // Set Supabase session
         supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
@@ -73,18 +67,16 @@ function AuthHandler() {
             console.error("Supabase setSession error:", error);
           } else {
             console.log("Supabase session established via URL token.");
-            // Clean URL
             window.history.replaceState(null, null, window.location.pathname);
-            window.location.href = "/dashboard"; // Optional redirect
+            window.location.href = "/dashboard";
           }
         });
       }
     }
   }, []);
 
-  return null; // or loading spinner
+  return null;
 }
-
 export default AuthHandler;
 
 
