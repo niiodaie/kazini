@@ -515,7 +515,6 @@ if (!isLoaded || authInitializing) {
 }
 
 
-
   return (
     <div className="App">
       <AnimatePresence mode="wait">
