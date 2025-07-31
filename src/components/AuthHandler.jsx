@@ -17,7 +17,14 @@ export const handleAuthTokens = () => {
           console.error("Supabase setSession error:", error);
         } else {
           console.log("✅ Supabase session established via URL token");
+
+          // ✅ Clean up the hash
           window.history.replaceState(null, null, window.location.pathname);
+
+          // ✅ Redirect only if on the homepage
+          if (window.location.pathname === "/") {
+            window.location.href = "/dashboard";
+          }
         }
       });
     }
