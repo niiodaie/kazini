@@ -31,22 +31,6 @@ import UpgradePrompt from './components/UpgradePrompt';
 
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
 
-function App() {
-  const [currentView, setCurrentView] = useState('home');
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [user, setUser] = useState(null);
-  const [showBillingModal, setShowBillingModal] = useState(false);
-  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
-  const [comingSoonFeature, setComingSoonFeature] = useState('');
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [welcomeData, setWelcomeData] = useState(null);
-  const [redirectAfterWelcome, setRedirectAfterWelcome] = useState(null);
-  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
-  const [upgradeFeature, setUpgradeFeature] = useState('');
-
-  import { useEffect } from "react";
-import { supabase } from './supabaseClient'; // adjust path as needed
-
 function AuthHandler() {
   useEffect(() => {
     const hash = window.location.hash;
@@ -77,6 +61,23 @@ function AuthHandler() {
 
   return null;
 }
+function App() {
+  const [currentView, setCurrentView] = useState('home');
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [user, setUser] = useState(null);
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
+  const [comingSoonFeature, setComingSoonFeature] = useState('');
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeData, setWelcomeData] = useState(null);
+  const [redirectAfterWelcome, setRedirectAfterWelcome] = useState(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('');
+
+  import { useEffect } from "react";
+import { supabase } from './supabaseClient'; // adjust path as needed
+
+f
 export default AuthHandler;
 
 
