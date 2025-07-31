@@ -4,7 +4,8 @@ import { Heart, Zap, Users, Shield, Star, ArrowRight, Play, MessageCircle, Trend
 import './App.css';
 
 import { supabase } from './supabase';
-import { upsertUserProfile, getCurrentUser } from './utils/authUtils';
+import { initializeAuth, setupAuthListener, handleLogout, isAuthenticated } from './utils/authHandler';
+import { ROUTES, navigateWithAuth, handlePostAuthRedirect, getDefaultRoute } from './utils/router';
 
 import kaziniLogo from './assets/kazinilogo.png';
 import kaziniIcon from './assets/kazini-appicon.png';
@@ -31,38 +32,8 @@ import UpgradePrompt from './components/UpgradePrompt';
 
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
 
-function AuthHandler() {
-  useEffect(() => {
-    const hash = window.location.hash;
-
-    if (hash.includes("access_token") && hash.includes("refresh_token")) {
-      const accessToken = new URLSearchParams(hash.substring(1)).get("access_token");
-      const refreshToken = new URLSearchParams(hash.substring(1)).get("refresh_token");
-
-      if (accessToken && refreshToken) {
-        localStorage.setItem("kazini_token", accessToken);
-        localStorage.setItem("kazini_refresh_token", refreshToken);
-
-        supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        }).then(({ error }) => {
-          if (error) {
-            console.error("Supabase setSession error:", error);
-          } else {
-            console.log("Supabase session established via URL token.");
-            window.history.replaceState(null, null, window.location.pathname);
-            window.location.href = "/dashboard";
-          }
-        });
-      }
-    }
-  }, []);
-
-  return null;
-}
 function App() {
-  const [currentView, setCurrentView] = useState('home');
+  const [currentView, setCurrentView] = useState(ROUTES.HOME);
   const [isLoaded, setIsLoaded] = useState(false);
   const [user, setUser] = useState(null);
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -74,166 +45,60 @@ function App() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
 
-  import { useEffect } from "react";
-import { supabase } from './supabaseClient'; // adjust path as needed
-
-f
-export default AuthHandler;
-
-
-
+  // Handle URL hash tokens and session setup
   useEffect(() => {
     setIsLoaded(true);
     
-    // Check for existing user session
-    const savedUser = localStorage.getItem('kazini_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    // Initialize authentication
+    initializeAuth(setUser);
+    
+    // Setup auth state listener
+    const authListener = setupAuthListener(setUser);
 
-    // Supabase auth state listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session);
-        
-        if (session && session.user) {
-          try {
-            // Create or update user profile in Supabase
-            const profile = await upsertUserProfile(session.user);
-            
-            // Create user data object for the app
-            const userData = {
-              id: session.user.id,
-              email: session.user.email,
-              firstName: session.user.user_metadata?.first_name || session.user.user_metadata?.name?.split(' ')[0] || 'User',
-              lastName: session.user.user_metadata?.last_name || session.user.user_metadata?.name?.split(' ').slice(1).join(' ') || '',
-              fullName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
-              plan: profile?.plan || 'free',
-              location: { country: '', city: '' },
-              authMethod: session.user.app_metadata?.provider || 'email',
-              provider: session.user.app_metadata?.provider,
-              truthTestsUsed: profile?.truth_tests_used || 0,
-              truthTestsResetDate: profile?.truth_tests_reset_date || new Date().toISOString(),
-              supabaseUser: session.user,
-              supabaseProfile: profile
-            };
-            
-            // Store user data in localStorage for app compatibility
-            localStorage.setItem('kazini_user', JSON.stringify(userData));
-            setUser(userData);
-            
-            // Handle social login welcome flow
-            if (session.user.app_metadata?.provider && session.user.app_metadata.provider !== 'email') {
-              // Show welcome screen for social logins
-              setWelcomeData(userData);
-              setShowWelcome(true);
-            }
-            
-          } catch (error) {
-            console.error('Error handling auth state change:', error);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          // Clear user data on sign out
-          localStorage.removeItem('kazini_user');
-          setUser(null);
-          setCurrentView('home');
-        }
-      }
-    );
-
-    // Listen for custom auth events from components
-    const handleShowAuth = () => {
+    // Listen for custom auth events
+    const handleShowAuth = (event) => {
       setCurrentView('auth');
     };
 
     window.addEventListener('showAuth', handleShowAuth);
-    
+
     return () => {
-      window.removeEventListener('showAuth', handleShowAuth);
       authListener?.subscription?.unsubscribe();
+      window.removeEventListener('showAuth', handleShowAuth);
     };
   }, []);
 
-  const handleAuthSuccess = (userData, isNewUser = false, isSocialLogin = false) => {
+  const handleAuthSuccess = (userData, isNewUser = false, showWelcomeScreen = false) => {
     setUser(userData);
+    localStorage.setItem('kazini_user', JSON.stringify(userData));
     
-    // Check if we need to show welcome screen
-    if (isNewUser || isSocialLogin) {
-      setWelcomeData({ user: userData, isNewUser, isSocialLogin });
+    if (showWelcomeScreen) {
+      setWelcomeData(userData);
       setShowWelcome(true);
-      // Store redirect destination if coming from a protected route
-      const urlParams = new URLSearchParams(window.location.search);
-      const nextRoute = urlParams.get('next');
-      if (nextRoute) {
-        setRedirectAfterWelcome(nextRoute);
-      }
+      setRedirectAfterWelcome(ROUTES.DASHBOARD);
     } else {
-      // Direct login, check for redirect
-      const urlParams = new URLSearchParams(window.location.search);
-      const nextRoute = urlParams.get('next');
-      if (nextRoute) {
-        setCurrentView(nextRoute.replace('/', ''));
-      } else {
-        setCurrentView('home');
+      // Check for post-auth redirect
+      if (!handlePostAuthRedirect(setCurrentView)) {
+        setCurrentView(ROUTES.DASHBOARD);
       }
     }
   };
 
   const handleWelcomeComplete = (mode) => {
     setShowWelcome(false);
-    setWelcomeData(null);
-    
-    if (mode === 'couple') {
-      setCurrentView('couple-mode');
-    } else if (mode === 'individual') {
-      if (redirectAfterWelcome) {
-        setCurrentView(redirectAfterWelcome.replace('/', ''));
-        setRedirectAfterWelcome(null);
-      } else {
-        setCurrentView('home');
-      }
+    if (redirectAfterWelcome) {
+      setCurrentView(redirectAfterWelcome);
     } else {
-      // Skip welcome
-      setCurrentView('home');
+      setCurrentView(ROUTES.DASHBOARD);
     }
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    setCurrentView('home');
+  const handleLogoutClick = async () => {
+    await handleLogout(setUser, setCurrentView);
   };
 
-  // Plan gating and upgrade handlers
-  const checkFeatureAccess = (feature) => {
-    if (!user) return false;
-    return checkPlanAccess(user.plan, feature);
-  };
-
-  const handleFeatureAccess = (feature, targetView) => {
-    if (!user) {
-      setCurrentView('auth');
-      return;
-    }
-
-    if (checkFeatureAccess(feature)) {
-      setCurrentView(targetView);
-    } else {
-      setUpgradeFeature(feature);
-      setShowUpgradePrompt(true);
-    }
-  };
-
-  const handleUpgrade = (plan) => {
-    setShowUpgradePrompt(false);
+  const handleUpgrade = () => {
     setShowBillingModal(true);
-  };
-
-  const handleBillingSuccess = (plan) => {
-    // Update user plan
-    const updatedUser = { ...user, plan: plan.id.replace('_yearly', '').replace('_monthly', '') };
-    setUser(updatedUser);
-    localStorage.setItem('kazini_user', JSON.stringify(updatedUser));
-    setShowBillingModal(false);
   };
 
   const handleComingSoon = (feature) => {
@@ -241,539 +106,442 @@ export default AuthHandler;
     setShowComingSoonModal(true);
   };
 
-  const handleBillingClose = () => {
-    setShowBillingModal(false);
+  const handleShowUpgrade = (feature) => {
+    setUpgradeFeature(feature);
+    setShowUpgradePrompt(true);
   };
 
-  const handleComingSoonClose = () => {
-    setShowComingSoonModal(false);
-    setComingSoonFeature('');
+  // Plan gating functions
+  const checkFeatureAccess = (feature) => {
+    if (!user) return false;
+    return checkPlanAccess(user.plan, feature);
   };
 
-  const features = [
-    {
-      icon: <Heart className="w-8 h-8" />,
-      title: "Emotional Truth Detection",
-      description: "AI-powered analysis of emotional authenticity in conversations",
-      color: "from-pink-500 to-rose-500"
-    },
-    {
-      icon: <Users className="w-8 h-8" />,
-      title: "Couple Modes",
-      description: "Live room codes and async link sharing for partners",
-      color: "from-purple-500 to-indigo-500"
-    },
-    {
-      icon: <TrendingUp className="w-8 h-8" />,
-      title: "Trust Index",
-      description: "Visual scoring and confidence tracking over time",
-      color: "from-blue-500 to-cyan-500"
-    },
-    {
-      icon: <Shield className="w-8 h-8" />,
-      title: "Privacy First",
-      description: "Secure, encrypted conversations with optional sharing",
-      color: "from-green-500 to-emerald-500"
+  const handleFeatureAccess = (feature, callback) => {
+    if (checkFeatureAccess(feature)) {
+      callback();
+    } else {
+      handleShowUpgrade(feature);
     }
-  ];
+  };
 
-  const testimonials = [
-    {
-      name: "Sarah & Mike",
-      text: "Kazini helped us communicate more honestly in our relationship.",
-      rating: 5
-    },
-    {
-      name: "Alex Chen",
-      text: "The AI insights are surprisingly accurate and helpful.",
-      rating: 5
-    },
-    {
-      name: "Emma Rodriguez",
-      text: "A game-changer for understanding emotional authenticity.",
-      rating: 5
-    }
-  ];
+  const handleCoupleMode = () => {
+    navigateWithAuth(ROUTES.COUPLE, user, checkPlanAccess, setCurrentView, setShowUpgradePrompt, setUpgradeFeature);
+  };
+
+  const handleTruthTest = () => {
+    setCurrentView(ROUTES.TRUTH_TEST);
+  };
+
+  const handleGoLive = () => {
+    setCurrentView(ROUTES.LIVE_DETECTION);
+  };
+
+  const handleAIScheduler = () => {
+    navigateWithAuth(ROUTES.AI_SCHEDULER, user, checkPlanAccess, setCurrentView, setShowUpgradePrompt, setUpgradeFeature);
+  };
+
+  const handleTruthCircle = () => {
+    setCurrentView(ROUTES.TRUTH_CIRCLE);
+  };
 
   const renderView = () => {
-    // Show welcome screen if needed
-    if (showWelcome && welcomeData) {
-      return (
-        <WelcomeScreen
-          user={welcomeData.user}
-          onComplete={handleWelcomeComplete}
-          isNewUser={welcomeData.isNewUser}
-          isSocialLogin={welcomeData.isSocialLogin}
-        />
-      );
+    // Show auth for logged-out users trying to access protected routes
+    if (!isAuthenticated(user) && [ROUTES.COUPLE, ROUTES.COUPLE_LIVE, ROUTES.COUPLE_ASYNC, ROUTES.PROFILE, ROUTES.HISTORY, ROUTES.TRUST_INDEX, ROUTES.AI_SCHEDULER].includes(currentView)) {
+      return <Auth onBack={() => setCurrentView(ROUTES.HOME)} onAuthSuccess={handleAuthSuccess} />;
     }
 
     switch (currentView) {
-      case 'auth':
-        return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} />;
-      case 'profile':
-        return <UserProfile user={user} onBack={() => setCurrentView('home')} onLogout={handleLogout} onUpgrade={handleUpgrade} onNavigate={setCurrentView} />;
-      case 'global-settings':
-        return <GlobalSettings onBack={() => setCurrentView('profile')} user={user} onSettingsUpdate={(settings) => console.log('Settings updated:', settings)} />;
-      case 'pricing':
-        return <Pricing onBack={() => setCurrentView('home')} user={user} onUpgrade={handleUpgrade} />;
-      case 'long-distance':
-        return <LongDistance onBack={() => setCurrentView('home')} user={user} />;
-      case 'truth-test':
-        return <TruthTest onBack={() => setCurrentView('home')} user={user} />;
-      case 'couple-mode':
-        // Check authentication for couple mode
-        if (!user) {
-          // Redirect to auth with next parameter
-          window.history.replaceState(null, '', '?next=couple-mode');
-          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} redirectTo="couple-mode" />;
-        }
-        return <CoupleModeSelector onBack={() => setCurrentView('home')} onNavigate={setCurrentView} user={user} />;
-      case 'couple-live':
-        // Check authentication for live mode
-        if (!user) {
-          window.history.replaceState(null, '', '?next=couple-live');
-          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} redirectTo="couple-live" />;
-        }
-        return <LiveSessionSetup onBack={() => setCurrentView('couple-mode')} user={user} />;
-      case 'couple-async':
-        // Check authentication for async mode
-        if (!user) {
-          window.history.replaceState(null, '', '?next=couple-async');
-          return <Auth onBack={() => setCurrentView('home')} onAuthSuccess={handleAuthSuccess} redirectTo="couple-async" />;
-        }
-        return <AsyncLinkGenerator onBack={() => setCurrentView('couple-mode')} user={user} />;
-      case 'trust-index':
-        return <TrustIndex onBack={() => setCurrentView('home')} user={user} />;
-      case 'history':
-        return <History onBack={() => setCurrentView('home')} user={user} />;
-      case 'live-detection':
-        return <LiveDetection onBack={() => setCurrentView('home')} user={user} />;
-      case 'ai-scheduler':
-        return <AIScheduler onBack={() => setCurrentView('home')} userPlan={user?.plan || 'free'} />;
-      case 'truth-circle':
-        return <TruthCircle onBack={() => setCurrentView('home')} />;
+      case ROUTES.AUTH:
+        return <Auth onBack={() => setCurrentView(ROUTES.HOME)} onAuthSuccess={handleAuthSuccess} />;
+      case ROUTES.TRUTH_TEST:
+        return <TruthTest onBack={() => setCurrentView(ROUTES.HOME)} user={user} />;
+      case ROUTES.COUPLE:
+        return <CoupleModeSelector onBack={() => setCurrentView(ROUTES.HOME)} />;
+      case ROUTES.COUPLE_LIVE:
+        return <LiveSessionSetup onBack={() => setCurrentView(ROUTES.COUPLE)} />;
+      case ROUTES.COUPLE_ASYNC:
+        return <AsyncLinkGenerator onBack={() => setCurrentView(ROUTES.COUPLE)} />;
+      case ROUTES.TRUST_INDEX:
+        return <TrustIndex onBack={() => setCurrentView(ROUTES.HOME)} />;
+      case ROUTES.HISTORY:
+        return <History onBack={() => setCurrentView(ROUTES.HOME)} />;
+      case ROUTES.PROFILE:
+        return <UserProfile onBack={() => setCurrentView(ROUTES.HOME)} user={user} onLogout={handleLogoutClick} />;
+      case ROUTES.SETTINGS:
+        return <GlobalSettings onBack={() => setCurrentView(ROUTES.HOME)} />;
+      case ROUTES.PRICING:
+        return <Pricing onBack={() => setCurrentView(ROUTES.HOME)} onUpgrade={handleUpgrade} />;
+      case ROUTES.LONG_DISTANCE:
+        return <LongDistance onBack={() => setCurrentView(ROUTES.HOME)} />;
+      case ROUTES.AI_SCHEDULER:
+        return <AIScheduler onBack={() => setCurrentView(ROUTES.HOME)} user={user} />;
+      case ROUTES.TRUTH_CIRCLE:
+        return <TruthCircle onBack={() => setCurrentView(ROUTES.HOME)} />;
+      case ROUTES.LIVE_DETECTION:
+        return <LiveDetection onBack={() => setCurrentView(ROUTES.HOME)} />;
+      case ROUTES.DASHBOARD:
+        return renderDashboard();
       default:
-        return (
-          <div className="min-h-screen romantic-bg">
-            {/* Floating emotional motifs */}
-            <div className="emotional-motifs">
-              <div className="motif">💔</div>
-              <div className="motif">💑</div>
-              <div className="motif">💬</div>
-              <div className="motif">💍</div>
-              <div className="motif">❤️</div>
-              <div className="motif">💕</div>
-            </div>
-            
-            {/* Dynamic light movement */}
-            <div className="light-movement"></div>
-
-            {/* Navigation Header */}
-            <nav className="relative z-20 p-4">
-              <div className="max-w-6xl mx-auto flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <img src={kaziniIcon} alt="Kazini" className="w-10 h-10 heart-pulse" />
-                  <span className="text-white font-bold text-xl">Kazini</span>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  {user ? (
-                    <div className="flex items-center gap-4">
-                      <span className="text-white/80 text-sm">
-                        Welcome, {user.firstName}
-                      </span>
-                      <button
-                        onClick={() => setCurrentView('profile')}
-                        className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full transition-all duration-300"
-                      >
-                        <User className="w-4 h-4" />
-                        Profile
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setCurrentView('auth')}
-                      className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-full transition-all duration-300"
-                    >
-                      Sign In
-                    </button>
-                  )}
-                </div>
-              </div>
-            </nav>
-
-            {/* Hero Section */}
-            <section className="min-h-screen flex items-center justify-center relative overflow-hidden pt-0">
-              {/* Background Animation */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="floating-animation absolute top-20 left-20 w-32 h-32 bg-white rounded-full"></div>
-                <div className="floating-animation absolute top-40 right-32 w-24 h-24 bg-white rounded-full" style={{ animationDelay: '2s' }}></div>
-                <div className="floating-animation absolute bottom-32 left-1/4 w-40 h-40 bg-white rounded-full" style={{ animationDelay: '4s' }}></div>
-              </div>
-
-              <div className="container mx-auto px-6 text-center relative z-10">
-                <motion.div
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 50 }}
-                  transition={{ duration: 0.8 }}
-                  className="mb-8"
-                >
-                  <div className="heart-pulse">
-                    <img 
-                      src={kaziniLogo} 
-                      alt="Kazini Logo" 
-                      className="w-64 h-auto mx-auto mb-6"
-                    />
-                  </div>
-                </motion.div>
-
-                <motion.h1
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 30 }}
-                  transition={{ duration: 0.8, delay: 0.2 }}
-                  className="text-5xl md:text-7xl font-bold text-white mb-6"
-                >
-                  Discover Emotional
-                  <span className="block bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
-                    Truth
-                  </span>
-                </motion.h1>
-
-                <motion.p
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 30 }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                  className="text-xl md:text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed"
-                >
-                  AI-powered emotional truth detection for deeper, more authentic relationships. 
-                  Understand the real emotions behind every conversation.
-                </motion.p>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 30 }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                  className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-                >
-                  <button
-                    onClick={() => user ? setCurrentView('truth-test') : setCurrentView('auth')}
-                    className="bg-white text-[#3B2A4A] px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-3 pulse-glow"
-                  >
-                    <Play className="w-6 h-6" />
-                    Start Truth Test
-                    <ArrowRight className="w-6 h-6" />
-                  </button>
-                  
-                  <button
-                    onClick={() => user ? setCurrentView('live-detection') : setCurrentView('auth')}
-                    className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-red-600 hover:to-pink-600 transition-all duration-300 flex items-center gap-3 shadow-lg"
-                  >
-                    <Camera className="w-6 h-6" />
-                    Go Live
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                  </button>
-                  
-                  <button
-                    onClick={() => handleFeatureAccess(PLAN_FEATURES.COUPLE_MODE, 'couple-mode')}
-                    className="border-2 border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-[#3B2A4A] transition-all duration-300 flex items-center gap-3 couple-glow"
-                  >
-                    <Users className="w-6 h-6" />
-                    Couple Mode
-                    {user && user.plan === 'free' && (
-                      <span className="text-xs bg-yellow-500 text-black px-2 py-1 rounded-full ml-2">Pro</span>
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={() => user ? setCurrentView('ai-scheduler') : setCurrentView('auth')}
-                    className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 flex items-center gap-3 shadow-lg"
-                  >
-                    <Calendar className="w-6 h-6" />
-                    AI Scheduler
-                  </button>
-                  
-                  <button
-                    onClick={() => setCurrentView('truth-circle')}
-                    className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-orange-600 hover:to-red-600 transition-all duration-300 flex items-center gap-3 shadow-lg"
-                  >
-                    <Hash className="w-6 h-6" />
-                    Truth Circle
-                  </button>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: isLoaded ? 1 : 0 }}
-                  transition={{ duration: 0.8, delay: 0.8 }}
-                  className="mt-16 text-white/70"
-                >
-                  <p className="text-sm mb-4">Powered by AI • Trusted by thousands</p>
-                  <div className="flex justify-center items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                    ))}
-                    <span className="ml-2 text-sm">4.9/5 from 10,000+ users</span>
-                  </div>
-                </motion.div>
-              </div>
-            </section>
-
-            {/* Features Section */}
-            <section className="py-20 bg-white/95 backdrop-blur-sm">
-              <div className="container mx-auto px-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6 }}
-                  className="text-center mb-16"
-                >
-                  <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                    Why Choose Kazini?
-                  </h2>
-                  <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Advanced AI technology meets intuitive design to help you understand 
-                    emotional authenticity like never before.
-                  </p>
-                </motion.div>
-
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                  {features.map((feature, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 30 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.1 }}
-                      className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group border border-white/20"
-                    >
-                      <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                        {feature.icon}
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">
-                        {feature.title}
-                      </h3>
-                      <p className="text-gray-600 leading-relaxed">
-                        {feature.description}
-                      </p>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* How It Works Section */}
-            <section className="py-20 bg-gradient-to-br from-purple-50/80 to-pink-50/80 backdrop-blur-sm">
-              <div className="container mx-auto px-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6 }}
-                  className="text-center mb-16"
-                >
-                  <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                    How It Works
-                  </h2>
-                  <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Simple, powerful, and accurate emotional truth detection in three steps.
-                  </p>
-                </motion.div>
-
-                <div className="grid md:grid-cols-3 gap-12">
-                  {[{
-                      step: "1",
-                      title: "Ask a Question",
-                      description: "Type or speak your question to start the emotional analysis process.",
-                      icon: <MessageCircle className="w-12 h-12" />
-                    },
-                    {
-                      step: "2",
-                      title: "Get Response",
-                      description: "Receive an answer and let our AI analyze the emotional authenticity.",
-                      icon: <Zap className="w-12 h-12" />
-                    },
-                    {
-                      step: "3",
-                      title: "View Results",
-                      description: "See truth indicators, confidence scores, and detailed insights.",
-                      icon: <TrendingUp className="w-12 h-12" />
-                    }
-                  ].map((step, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 30 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.2 }}
-                      className="text-center"
-                    >
-                      <div className="w-24 h-24 bg-gradient-to-r from-[#3B2A4A] to-[#FF5A5F] rounded-full flex items-center justify-center text-white mx-auto mb-6 heart-pulse">
-                        {step.icon}
-                      </div>
-                      <div className="text-sm font-bold text-[#FF5A5F] mb-2">STEP {step.step}</div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-4">{step.title}</h3>
-                      <p className="text-gray-600 leading-relaxed">{step.description}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Testimonials Section */}
-            <section className="py-20 bg-white/90 backdrop-blur-sm">
-              <div className="container mx-auto px-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6 }}
-                  className="text-center mb-16"
-                >
-                  <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                    What Users Say
-                  </h2>
-                  <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Join thousands of users who have discovered deeper emotional connections.
-                  </p>
-                </motion.div>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                  {testimonials.map((testimonial, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 30 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: index * 0.1 }}
-                      className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200"
-                    >
-                      <div className="flex mb-4">
-                        {[...Array(testimonial.rating)].map((_, i) => (
-                          <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                      <p className="text-gray-700 mb-4 italic text-lg">"{testimonial.text}"</p>
-                      <p className="text-gray-900 font-semibold">{testimonial.name}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* CTA Section */}
-            <section className="py-20 bg-gradient-to-br from-blue-500/80 to-purple-500/80 backdrop-blur-sm">
-              <div className="container mx-auto px-6 text-center">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                    Ready to Discover Truth?
-                  </h2>
-                  <p className="text-xl text-white/90 mb-12 max-w-3xl mx-auto">
-                    Start your journey to deeper, more authentic relationships today.
-                  </p>
-                  <button
-                    onClick={() => user ? setCurrentView('truth-test') : setCurrentView('auth')}
-                    className="bg-white text-[#3B2A4A] px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-3 pulse-glow mx-auto"
-                  >
-                    <Play className="w-6 h-6" />
-                    Start Truth Test
-                    <ArrowRight className="w-6 h-6" />
-                  </button>
-                </motion.div>
-              </div>
-            </section>
-
-            {/* Footer */}
-            <footer className="bg-[#3B2A4A] py-12">
-              <div className="container mx-auto px-6 text-center text-white/70">
-                <div className="flex flex-col md:flex-row justify-between items-center mb-8">
-                  <div className="flex items-center gap-3 mb-4 md:mb-0">
-                    <img src={kaziniIcon} alt="Kazini" className="w-8 h-8 heart-pulse" />
-                    <span className="text-white font-bold text-lg">Kazini</span>
-                    <span className="text-white/50">Powered by Visnec Global</span>
-                  </div>
-                  <div className="flex gap-6">
-                    <a href="#" onClick={() => setCurrentView('trust-index')} className="hover:text-white transition-colors duration-300">Trust Index</a>
-                    <a href="#" onClick={() => setCurrentView('history')} className="hover:text-white transition-colors duration-300">History</a>
-                    <a href="#" onClick={() => setCurrentView('pricing')} className="hover:text-white transition-colors duration-300">Pricing</a>
-                    <a href="#" onClick={() => setCurrentView('long-distance')} className="hover:text-white transition-colors duration-300">Long Distance</a>
-                  </div>
-                </div>
-                
-                {/* Social Media Icons */}
-                <div className="flex justify-center gap-6 mb-6">
-                  <a href="https://facebook.com/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                  </a>
-                  <a href="https://instagram.com/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12.017 0C8.396 0 8.025.044 6.79.207 5.557.37 4.697.723 3.953 1.171c-.744.448-1.376 1.08-1.824 1.824C1.681 3.739 1.328 4.599 1.165 5.832.002 7.067-.042 7.438-.042 11.059s.044 3.992.207 5.227c.163 1.233.516 2.093.964 2.837.448.744 1.08 1.376 1.824 1.824.744.448 1.604.801 2.837.964 1.235.163 1.606.207 5.227.207s3.992-.044 5.227-.207c1.233-.163 2.093-.516 2.837-.964.744-.448 1.376-1.08 1.824-1.824.448-.744.801-1.604.964-2.837.163-1.235.207-1.606.207-5.227s-.044-3.992-.207-5.227c-.163-1.233-.516-2.093-.964-2.837-.448-.744-1.08-1.376-1.824-1.824C15.109 1.328 14.249.975 13.016.812 11.781.649 11.41.605 7.789.605h4.228z"/>
-                    </svg>
-                  </a>
-                  <a href="https://tiktok.com/@kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
-                    </svg>
-                  </a>
-                  <a href="https://linkedin.com/company/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                    </svg>
-                  </a>
-                  <a href="https://twitter.com/kazini" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white transition-colors duration-300">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                    </svg>
-                  </a>
-                </div>
-                
-                <p className="text-sm">
-                  © 2024 Visnec Global. All rights reserved. | Privacy Policy | Terms of Service
-                </p>
-              </div>
-            </footer>
-          </div>
-        );
+        return renderHero();
     }
   };
 
-  // Add message listener for coming soon modal
-  useEffect(() => {
-    const handleMessage = (event) => {
-      if (event.data.type === 'SHOW_COMING_SOON') {
-        handleComingSoon(event.data.feature);
-      }
-    };
+  const renderDashboard = () => {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-800 mb-4">Welcome back, {user?.displayName}!</h1>
+            <p className="text-lg text-gray-600">Ready to discover emotional truth?</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {/* Feature cards */}
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="bg-white rounded-xl p-6 shadow-lg cursor-pointer"
+              onClick={handleTruthTest}
+            >
+              <div className="text-center">
+                <MessageCircle className="w-12 h-12 text-pink-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Truth Test</h3>
+                <p className="text-gray-600">Analyze responses for emotional authenticity</p>
+              </div>
+            </motion.div>
 
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="bg-white rounded-xl p-6 shadow-lg cursor-pointer"
+              onClick={handleCoupleMode}
+            >
+              <div className="text-center">
+                <Users className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Couple Mode</h3>
+                <p className="text-gray-600">Test together in real-time or async</p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="bg-white rounded-xl p-6 shadow-lg cursor-pointer"
+              onClick={handleGoLive}
+            >
+              <div className="text-center">
+                <Camera className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Go Live</h3>
+                <p className="text-gray-600">Real-time video truth detection</p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="bg-white rounded-xl p-6 shadow-lg cursor-pointer"
+              onClick={handleAIScheduler}
+            >
+              <div className="text-center">
+                <Calendar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">AI Scheduler</h3>
+                <p className="text-gray-600">Schedule automated truth sessions</p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="bg-white rounded-xl p-6 shadow-lg cursor-pointer"
+              onClick={handleTruthCircle}
+            >
+              <div className="text-center">
+                <Hash className="w-12 h-12 text-orange-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Truth Circle</h3>
+                <p className="text-gray-600">Community stories and insights</p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="bg-white rounded-xl p-6 shadow-lg cursor-pointer"
+              onClick={() => setCurrentView(ROUTES.PROFILE)}
+            >
+              <div className="text-center">
+                <User className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Profile</h3>
+                <p className="text-gray-600">Manage your account and settings</p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHero = () => {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 relative overflow-hidden">
+        {/* Navigation */}
+        <nav className="relative z-10 flex justify-between items-center p-6">
+          <div className="flex items-center space-x-3">
+            <img src={kaziniIcon} alt="Kazini" className="w-10 h-10" />
+            <img src={kaziniLogo} alt="Kazini" className="h-8" />
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setCurrentView(ROUTES.PRICING)}
+              className="text-gray-700 hover:text-pink-600 transition-colors"
+            >
+              Pricing
+            </button>
+            {isAuthenticated(user) ? (
+              <button
+                onClick={() => setCurrentView(ROUTES.PROFILE)}
+                className="bg-pink-500 text-white px-6 py-2 rounded-full hover:bg-pink-600 transition-colors"
+              >
+                Profile
+              </button>
+            ) : (
+              <button
+                onClick={() => setCurrentView(ROUTES.AUTH)}
+                className="bg-pink-500 text-white px-6 py-2 rounded-full hover:bg-pink-600 transition-colors"
+              >
+                Sign In
+              </button>
+            )}
+          </div>
+        </nav>
+
+        {/* Hero Content */}
+        <div className="relative z-10 container mx-auto px-6 py-20">
+          <div className="text-center max-w-4xl mx-auto">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-6xl md:text-7xl font-bold text-gray-800 mb-6"
+            >
+              Discover{' '}
+              <span className="bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+                Emotional Truth
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-xl md:text-2xl text-gray-600 mb-12 leading-relaxed"
+            >
+              AI-powered relationship insights that help couples build deeper trust and authentic connections
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16"
+            >
+              <button
+                onClick={handleTruthTest}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Start Truth Test
+              </button>
+
+              <button
+                onClick={handleGoLive}
+                className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 relative"
+              >
+                <Camera className="w-5 h-5" />
+                Go Live
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
+              </button>
+
+              <button
+                onClick={handleCoupleMode}
+                className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              >
+                <Users className="w-5 h-5" />
+                Couple Mode
+              </button>
+
+              <button
+                onClick={handleAIScheduler}
+                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              >
+                <Calendar className="w-5 h-5" />
+                AI Scheduler
+              </button>
+
+              <button
+                onClick={handleTruthCircle}
+                className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              >
+                <Hash className="w-5 h-5" />
+                Truth Circle
+              </button>
+            </motion.div>
+
+            {/* Features Grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+            >
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+                <Zap className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-3">AI-Powered Analysis</h3>
+                <p className="text-gray-600">Advanced algorithms detect micro-expressions and speech patterns</p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+                <Shield className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-3">Privacy First</h3>
+                <p className="text-gray-600">Your conversations stay private with end-to-end encryption</p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+                <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-3">Relationship Growth</h3>
+                <p className="text-gray-600">Build stronger bonds through honest communication</p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Testimonials */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.8 }}
+          className="relative z-10 container mx-auto px-6 py-20"
+        >
+          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">What Couples Are Saying</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <div className="flex items-center mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                ))}
+              </div>
+              <p className="text-gray-600 mb-4">"Kazini helped us communicate more honestly in our relationship."</p>
+              <p className="font-semibold text-gray-800">- Sarah & Mike</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <div className="flex items-center mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                ))}
+              </div>
+              <p className="text-gray-600 mb-4">"The AI insights are surprisingly accurate and helpful."</p>
+              <p className="font-semibold text-gray-800">- Alex Chen</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <div className="flex items-center mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                ))}
+              </div>
+              <p className="text-gray-600 mb-4">"A game-changer for understanding emotional authenticity."</p>
+              <p className="font-semibold text-gray-800">- Emma Rodriguez</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Footer */}
+        <footer className="relative z-10 bg-gray-800 text-white py-12">
+          <div className="container mx-auto px-6">
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <div className="flex items-center space-x-3 mb-4 md:mb-0">
+                <img src={kaziniIcon} alt="Kazini" className="w-8 h-8" />
+                <img src={kaziniLogo} alt="Kazini" className="h-6" />
+              </div>
+              
+              <div className="flex space-x-6 mb-4 md:mb-0">
+                <a href="#" className="hover:text-pink-400 transition-colors">Privacy</a>
+                <a href="#" className="hover:text-pink-400 transition-colors">Terms</a>
+                <a href="#" className="hover:text-pink-400 transition-colors">Support</a>
+              </div>
+
+              <div className="flex space-x-4">
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
+                  </svg>
+                </a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/>
+                  </svg>
+                </a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.174-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.402.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.357-.629-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24.009 12.017 24.009c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641.001.012.001z"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-700 mt-8 pt-8 text-center">
+              <p className="text-gray-400">© 2024 Kazini. All rights reserved. Powered by Visnec Global.</p>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center">
+        <div className="text-center">
+          <img src={kaziniIcon} alt="Kazini" className="w-16 h-16 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Loading Kazini...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <AnimatePresence mode="wait">
-      {renderView()}
-      <BillingModal 
-        isOpen={showBillingModal} 
-        onClose={handleBillingClose}
-        onUpgrade={handleBillingSuccess}
-      />
-      <ComingSoonModal 
-        isOpen={showComingSoonModal} 
-        onClose={handleComingSoonClose}
-        feature={comingSoonFeature}
-      />
-      <UpgradePrompt
-        isOpen={showUpgradePrompt}
-        onClose={() => setShowUpgradePrompt(false)}
-        feature={upgradeFeature}
-        onUpgrade={handleUpgrade}
-        currentPlan={user?.plan || 'free'}
-      />
-    </AnimatePresence>
+    <div className="App">
+      <AnimatePresence mode="wait">
+        {renderView()}
+      </AnimatePresence>
+
+      {/* Modals */}
+      {showWelcome && (
+        <WelcomeScreen
+          userData={welcomeData}
+          onComplete={handleWelcomeComplete}
+        />
+      )}
+
+      {showBillingModal && (
+        <BillingModal
+          onClose={() => setShowBillingModal(false)}
+          user={user}
+        />
+      )}
+
+      {showComingSoonModal && (
+        <ComingSoonModal
+          feature={comingSoonFeature}
+          onClose={() => setShowComingSoonModal(false)}
+        />
+      )}
+
+      {showUpgradePrompt && (
+        <UpgradePrompt
+          feature={upgradeFeature}
+          onClose={() => setShowUpgradePrompt(false)}
+          onUpgrade={handleUpgrade}
+        />
+      )}
+    </div>
   );
 }
 
 export default App;
-
 
