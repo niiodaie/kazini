@@ -652,4 +652,3 @@ if (provider !== 'google') {
 };
 
 export default Auth;
-
