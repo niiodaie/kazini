@@ -224,7 +224,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
         } else {
           setErrors({ general: 'Invalid email or password' });
         }
-    } else if (activeTab === 'signup') {
+   } else if (activeTab === 'signup') {
   try {
     const { data: data2, error } = await supabase.auth.signUp({
       email: formData.email,
@@ -238,8 +238,8 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     });
 
     if (data2?.user) {
-      await supabase.auth.signOut(); // Prevent auto-login before verification
-      setShowMessage("🎉 Account created! Please check your inbox and verify your email before logging in.");
+      await supabase.auth.signOut();
+      setShowMessage("🎉 Account created! Please check your inbox...");
     } else {
       setErrors({ general: error?.message?.toString() || 'Failed to create account' });
     }
@@ -249,19 +249,27 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   } finally {
     setIsLoading(false);
   }
+
+} else if (provider === 'google') {
+  setIsLoading(true);
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'https://auth.kazini.app/auth/v1/callback',
+      },
+    });
+
+    if (error) {
+      setErrors({ general: 'Google login failed. Please try again.' });
+    }
+  } catch (error) {
+    setErrors({ general: 'An error occurred during Google login.' });
+  } finally {
+    setIsLoading(false);
+  }
 }
 
-
-    if (provider === 'google') {
-      setIsLoading(true);
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: 'https://auth.kazini.app/auth/v1/callback',
-
-          },
-        });
 
         if (error) {
           setErrors({ general: 'Google login failed. Please try again.' });
