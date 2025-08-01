@@ -250,7 +250,8 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     localStorage.setItem('kazini_user', JSON.stringify(userData));
     onAuthSuccess(userData, true, true);
   } else {
-    setErrors({ general: error?.message || 'Failed to create account' });
+    setErrors({ general: error?.message?.toString() || 'Failed to create account' });
+
   }
 
       }
