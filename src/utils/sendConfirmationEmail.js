@@ -1,6 +1,8 @@
 // utils/sendConfirmationEmail.js
 import { Resend } from 'resend';
-const resend = re_V16xxz9y_2gwQGMrDdaqrSZx5sugfrpJi
+
+const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY); // pulls from your .env
+
 export async function sendConfirmationEmail({ to, name, confirmUrl }) {
   try {
     const { data, error } = await resend.emails.send({
