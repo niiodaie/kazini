@@ -243,6 +243,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     } else {
       setErrors({ general: error?.message?.toString() || 'Failed to create account' });
     }
+  }
   } catch (error) {
     setErrors({ general: error.message });
   } finally {
