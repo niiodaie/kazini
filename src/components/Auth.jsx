@@ -646,11 +646,10 @@ if (provider !== 'google') {
             </CardContent>
           </Card>
         </motion.div>
-      </div>
        </div>
+    </div>
   );
 };
-    
-export default Auth;
 
+export default Auth;
 
