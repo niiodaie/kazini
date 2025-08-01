@@ -224,34 +224,35 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
         } else {
           setErrors({ general: 'Invalid email or password' });
         }
-      } else if (activeTab === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-            }
-          }
-        });
+     } else if (activeTab === 'signup') {
+  const { data: data2, error } = await supabase.auth.signUp({
+    email: formData.email,
+    password: formData.password,
+    options: {
+      data: {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      },
+    },
+  });
 
-        if (data?.user) {
-          const userData = {
-            id: data.user.id,
-            email: formData.email,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            plan: 'free',
-            location: userLocation,
-            authMethod: 'email'
-          };
+  if (data2?.user) {
+    const userData = {
+      id: data2.user.id,
+      email: formData.email,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      plan: 'free',
+      location: userLocation,
+      authMethod: 'email',
+    };
 
-          localStorage.setItem('kazini_user', JSON.stringify(userData));
-          onAuthSuccess(userData, true, true);
-        } else {
-          setErrors({ general: 'Failed to create account' });
-        }
+    localStorage.setItem('kazini_user', JSON.stringify(userData));
+    onAuthSuccess(userData, true, true);
+  } else {
+    setErrors({ general: error?.message || 'Failed to create account' });
+  }
+
       }
     } catch (error) {
       setErrors({ general: error.message });
