@@ -225,44 +225,30 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
           setErrors({ general: 'Invalid email or password' });
         }
     } else if (activeTab === 'signup') {
-  const { data: data2, error } = await supabase.auth.signUp({
-    email: formData.email,
-    password: formData.password,
-    options: {
-      data: {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+  try {
+    const { data: data2, error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        data: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+        },
       },
-    },
-  });
+    });
 
-  if (data2?.user) {
-    await supabase.auth.signOut(); // Prevent auto-login before verification
-
-    setShowMessage("🎉 Account created! Please check your inbox and verify your email before logging in.");
-  } else {
-    setErrors({ general: error?.message?.toString() || 'Failed to create account' });
+    if (data2?.user) {
+      await supabase.auth.signOut(); // Prevent auto-login before verification
+      setShowMessage("🎉 Account created! Please check your inbox and verify your email before logging in.");
+    } else {
+      setErrors({ general: error?.message?.toString() || 'Failed to create account' });
+    }
+  } catch (error) {
+    setErrors({ general: error.message });
+  } finally {
+    setIsLoading(false);
   }
 }
-
-  };
-
-  const handleSocialLoginClick = async (provider) => {
-    if (provider === 'guest') {
-      const guestData = {
-        id: 'guest_' + Date.now(),
-        email: 'guest@kazini.app',
-        firstName: 'Guest',
-        lastName: 'User',
-        plan: 'free',
-        location: userLocation,
-        authMethod: 'guest'
-      };
-      
-      localStorage.setItem('kazini_user', JSON.stringify(guestData));
-      onAuthSuccess(guestData, false, false);
-      return;
-    }
 
     if (provider === 'google') {
       setIsLoading(true);
