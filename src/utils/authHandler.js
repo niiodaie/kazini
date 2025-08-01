@@ -72,9 +72,9 @@ export const setupAuthListener = (setUser) => {
           setUser(userData);
           localStorage.setItem('kazini_user', JSON.stringify(userData));
           
-          // Redirect to dashboard if coming from auth
+          // Redirect to truth-test if coming from auth (instead of dashboard)
           if (event === 'SIGNED_IN') {
-            return { redirect: '/dashboard', user: userData };
+            return { redirect: '/truth-test', user: userData };
           }
         } catch (error) {
           console.error('Error handling auth state change:', error);

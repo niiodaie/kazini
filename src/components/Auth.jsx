@@ -6,10 +6,12 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock } from 'lucide-react';
+import { Alert, AlertDescription } from './ui/alert';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock, AlertTriangle, Info } from 'lucide-react';
 
 // Import Supabase
 import { supabase } from '../supabase';
+import { upsertUserProfile } from '../utils/authUtils';
 
 const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -26,13 +28,15 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     acceptTerms: false
   });
   const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
   const [userLocation, setUserLocation] = useState({ country: '', city: '' });
   const [otpSent, setOtpSent] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
   const [phoneVerified, setPhoneVerified] = useState(false);
+  const [emailVerificationRequired, setEmailVerificationRequired] = useState(false);
 
   useEffect(() => {
-    // Simulate location detection
+    // Detect user location
     const detectLocation = async () => {
       try {
         // Mock location detection - in real app, use geolocation API
@@ -58,28 +62,52 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
 
   // Format phone number to international format
   const formatPhoneNumber = (phone) => {
-    // Remove all non-digits
     const cleaned = phone.replace(/\D/g, '');
     
-    // If it starts with 1, assume US number
     if (cleaned.length === 11 && cleaned.startsWith('1')) {
       return `+${cleaned}`;
-    }
-    // If it's 10 digits, assume US number without country code
-    else if (cleaned.length === 10) {
+    } else if (cleaned.length === 10) {
       return `+1${cleaned}`;
-    }
-    // If it already starts with +, return as is
-    else if (phone.startsWith('+')) {
+    } else if (phone.startsWith('+')) {
       return phone;
-    }
-    // Default to US format
-    else {
+    } else {
       return `+1${cleaned}`;
     }
   };
 
-  // ✅ 1. Send OTP with proper phone formatting
+  // Clear all messages and errors
+  const clearMessages = () => {
+    setErrors({});
+    setSuccessMessage('');
+    setEmailVerificationRequired(false);
+  };
+
+  // Handle Google OAuth
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    clearMessages();
+    
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        console.error('Google OAuth error:', error);
+        setErrors({ general: 'Google login failed. Please try again.' });
+      }
+    } catch (error) {
+      console.error('Google OAuth exception:', error);
+      setErrors({ general: 'An error occurred during Google login.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Send OTP with proper phone formatting
   const sendOTP = async () => {
     if (!formData.phone) {
       setErrors({ phone: 'Please enter your phone number' });
@@ -90,6 +118,8 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     console.log('Sending OTP to:', formattedPhone);
 
     setIsLoading(true);
+    clearMessages();
+    
     try {
       const { error } = await supabase.auth.signInWithOtp({
         phone: formattedPhone,
@@ -100,9 +130,8 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
         setErrors({ phone: `Failed to send OTP: ${error.message}` });
       } else {
         setOtpSent(true);
-        setOtpTimer(60); // 60 second countdown
-        setErrors({});
-        // Update formData with formatted phone
+        setOtpTimer(60);
+        setSuccessMessage('Verification code sent to your phone!');
         setFormData(prev => ({ ...prev, phone: formattedPhone }));
       }
     } catch (err) {
@@ -113,11 +142,16 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     }
   };
 
-  // ✅ 2. Verify OTP
+  // Verify OTP
   const verifyOTP = async () => {
-    if (!validateForm()) return;
+    if (!formData.otp) {
+      setErrors({ otp: 'Please enter the verification code' });
+      return;
+    }
 
     setIsLoading(true);
+    clearMessages();
+    
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         phone: formData.phone,
@@ -125,24 +159,34 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
         type: 'sms'
       });
 
+      if (error) {
+        console.error('OTP Verification Error:', error);
+        setErrors({ otp: 'Invalid verification code. Please try again.' });
+        return;
+      }
+
       if (data?.user) {
+        // Create user profile
+        const profileData = await upsertUserProfile(data.user);
+        
         const userData = {
           id: data.user.id,
           phone: formData.phone,
-          firstName: 'Phone',
-          lastName: 'User',
-          plan: 'free',
+          displayName: profileData.display_name || 'Phone User',
+          plan: profileData.plan || 'free',
           location: userLocation,
-          authMethod: 'phone'
+          authMethod: 'phone',
+          supabaseUser: data.user
         };
 
         localStorage.setItem('kazini_user', JSON.stringify(userData));
+        
+        // Redirect to truth-test on successful verification
         onAuthSuccess(userData, true, false);
-      } else {
-        setErrors({ otp: 'Invalid OTP. Please try again.' });
       }
     } catch (err) {
-      setErrors({ otp: 'Verification failed. Try again.' });
+      console.error('OTP Verification Exception:', err);
+      setErrors({ otp: 'Verification failed. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -153,19 +197,28 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
 
     if (activeTab === 'login') {
       if (!formData.email) newErrors.email = 'Email is required';
+      else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email';
+      
       if (!formData.password) newErrors.password = 'Password is required';
+      else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     } else if (activeTab === 'signup') {
       if (!formData.firstName) newErrors.firstName = 'First name is required';
       if (!formData.lastName) newErrors.lastName = 'Last name is required';
+      
       if (!formData.email) newErrors.email = 'Email is required';
+      else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email';
+      
       if (!formData.password) newErrors.password = 'Password is required';
+      else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+      
       if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
-      if (!formData.acceptTerms) newErrors.acceptTerms = 'You must accept the terms';
+      
+      if (!formData.acceptTerms) newErrors.acceptTerms = 'You must accept the terms and conditions';
     } else if (activeTab === 'phone') {
       if (!formData.phone) newErrors.phone = 'Phone number is required';
-      if (otpSent && !formData.otp) newErrors.otp = 'OTP is required';
+      if (otpSent && !formData.otp) newErrors.otp = 'Verification code is required';
     }
 
     setErrors(newErrors);
@@ -175,7 +228,6 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Special handling for phone input
     if (name === 'phone') {
       // Allow only digits, spaces, hyphens, parentheses, and plus sign
       const cleaned = value.replace(/[^\d\s\-\(\)\+]/g, '');
@@ -201,6 +253,8 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    clearMessages();
+    
     try {
       if (activeTab === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -208,80 +262,90 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
           password: formData.password,
         });
 
+        if (error) {
+          console.error('Login error:', error);
+          
+          // Provide specific error messages
+          if (error.message.includes('Invalid login credentials')) {
+            setErrors({ general: 'Invalid email or password. Please check your credentials and try again.' });
+          } else if (error.message.includes('Email not confirmed')) {
+            setErrors({ general: 'Please verify your email address before signing in.' });
+          } else if (error.message.includes('Too many requests')) {
+            setErrors({ general: 'Too many login attempts. Please wait a moment and try again.' });
+          } else {
+            setErrors({ general: error.message || 'Login failed. Please try again.' });
+          }
+          return;
+        }
+
         if (data?.user) {
+          // Check if email is verified
+          if (!data.user.email_confirmed_at) {
+            setEmailVerificationRequired(true);
+            setErrors({ general: 'Please verify your email address to access all features.' });
+            return;
+          }
+
+          // Create user profile
+          const profileData = await upsertUserProfile(data.user);
+          
           const userData = {
             id: data.user.id,
             email: formData.email,
-            firstName: data.user.user_metadata?.firstName || 'User',
-            lastName: data.user.user_metadata?.lastName || '',
-            plan: 'free',
+            displayName: profileData.display_name || 
+                        data.user.user_metadata?.firstName || 
+                        data.user.email?.split('@')[0] || 
+                        'User',
+            plan: profileData.plan || 'free',
             location: userLocation,
-            authMethod: 'email'
+            authMethod: 'email',
+            supabaseUser: data.user
           };
 
           localStorage.setItem('kazini_user', JSON.stringify(userData));
-          onAuthSuccess(userData, true, false);
-        } else {
-          setErrors({ general: 'Invalid email or password' });
+          
+          // Redirect to truth-test on successful login
+          onAuthSuccess(userData, false, false);
         }
-   } else if (activeTab === 'signup') {
-  try {
-    const { data: data2, error } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-        },
-      },
-    });
+      } else if (activeTab === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+            },
+          },
+        });
 
-    if (data2?.user) {
-      await supabase.auth.signOut();
-      setShowMessage("🎉 Account created! Please check your inbox...");
-    } else {
-      setErrors({ general: error?.message?.toString() || 'Failed to create account' });
-    }
+        if (error) {
+          console.error('Signup error:', error);
+          
+          // Provide specific error messages
+          if (error.message.includes('User already registered')) {
+            setErrors({ general: 'An account with this email already exists. Please try logging in instead.' });
+          } else if (error.message.includes('Password should be')) {
+            setErrors({ general: 'Password is too weak. Please choose a stronger password.' });
+          } else {
+            setErrors({ general: error.message || 'Failed to create account. Please try again.' });
+          }
+          return;
+        }
 
-  } catch (error) {
-    setErrors({ general: error.message });
-  } finally {
-    setIsLoading(false);
-  }
-
-if (provider !== 'google') {
-  setIsLoading(true);
-  try {
-    // e.g., for other providers
-  } catch (error) {
-    setErrors({ general: error.message });
-  } finally {
-    setIsLoading(false);
-  }
-} else {
-  setIsLoading(true);
-  (async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'https://auth.kazini.app/auth/v1/callback',
-        },
-      });
-
-      if (error) {
-        setErrors({ general: 'Google login failed. Please try again.' });
+        if (data?.user) {
+          setSuccessMessage('Account created successfully! Please check your email to verify your account.');
+          setActiveTab('login');
+          setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+        }
       }
     } catch (error) {
-      setErrors({ general: 'An error occurred during Google login.' });
+      console.error('Auth exception:', error);
+      setErrors({ general: 'A network error occurred. Please check your connection and try again.' });
     } finally {
       setIsLoading(false);
     }
-  })();
-}
-
-
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -318,6 +382,36 @@ if (provider !== 'google') {
                   <span>{userLocation.city}, {userLocation.country}</span>
                 </div>
               </div>
+
+              {/* Success Message */}
+              {successMessage && (
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    {successMessage}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Email Verification Required */}
+              {emailVerificationRequired && (
+                <Alert className="border-yellow-200 bg-yellow-50">
+                  <Info className="h-4 w-4 text-yellow-600" />
+                  <AlertDescription className="text-yellow-800">
+                    Please check your email and click the verification link to access all features.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* General Error */}
+              {errors.general && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    {errors.general}
+                  </AlertDescription>
+                </Alert>
+              )}
               
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-6">
@@ -340,6 +434,7 @@ if (provider !== 'google') {
                           value={formData.email}
                           onChange={handleInputChange}
                           className="pl-10"
+                          disabled={isLoading}
                         />
                       </div>
                       {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
@@ -357,11 +452,13 @@ if (provider !== 'google') {
                           value={formData.password}
                           onChange={handleInputChange}
                           className="pl-10 pr-10"
+                          disabled={isLoading}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                          disabled={isLoading}
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -380,6 +477,7 @@ if (provider !== 'google') {
                           placeholder="First name"
                           value={formData.firstName}
                           onChange={handleInputChange}
+                          disabled={isLoading}
                         />
                         {errors.firstName && <p className="text-sm text-red-500">{errors.firstName}</p>}
                       </div>
@@ -391,6 +489,7 @@ if (provider !== 'google') {
                           placeholder="Last name"
                           value={formData.lastName}
                           onChange={handleInputChange}
+                          disabled={isLoading}
                         />
                         {errors.lastName && <p className="text-sm text-red-500">{errors.lastName}</p>}
                       </div>
@@ -408,6 +507,7 @@ if (provider !== 'google') {
                           value={formData.email}
                           onChange={handleInputChange}
                           className="pl-10"
+                          disabled={isLoading}
                         />
                       </div>
                       {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
@@ -425,11 +525,13 @@ if (provider !== 'google') {
                           value={formData.password}
                           onChange={handleInputChange}
                           className="pl-10 pr-10"
+                          disabled={isLoading}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                          disabled={isLoading}
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -449,6 +551,7 @@ if (provider !== 'google') {
                           value={formData.confirmPassword}
                           onChange={handleInputChange}
                           className="pl-10"
+                          disabled={isLoading}
                         />
                       </div>
                       {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
@@ -462,6 +565,7 @@ if (provider !== 'google') {
                         checked={formData.acceptTerms}
                         onChange={handleInputChange}
                         className="rounded border-gray-300"
+                        disabled={isLoading}
                       />
                       <Label htmlFor="acceptTerms" className="text-sm">
                         I agree to the Terms of Service and Privacy Policy
@@ -488,7 +592,7 @@ if (provider !== 'google') {
                           value={formData.phone}
                           onChange={handleInputChange}
                           className="pl-10"
-                          disabled={otpSent}
+                          disabled={otpSent || isLoading}
                         />
                       </div>
                       {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
@@ -508,6 +612,7 @@ if (provider !== 'google') {
                             onChange={handleInputChange}
                             className="pl-10"
                             maxLength={6}
+                            disabled={isLoading}
                           />
                         </div>
                         {errors.otp && <p className="text-sm text-red-500">{errors.otp}</p>}
@@ -525,8 +630,10 @@ if (provider !== 'google') {
                                 onClick={() => {
                                   setOtpSent(false);
                                   setFormData(prev => ({ ...prev, otp: '' }));
+                                  clearMessages();
                                 }}
                                 className="text-purple-600 hover:text-purple-700 hover:underline"
+                                disabled={isLoading}
                               >
                                 Resend Code
                               </button>
@@ -543,12 +650,6 @@ if (provider !== 'google') {
                     )}
                   </TabsContent>
                   
-                  {errors.general && (
-                    <div className="text-sm text-red-500 text-center mb-4">
-                      {errors.general}
-                    </div>
-                  )}
-                  
                   {activeTab === 'phone' ? (
                     <Button
                       type="button"
@@ -559,10 +660,10 @@ if (provider !== 'google') {
                       {isLoading ? (
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {!otpSent ? 'Sending OTP...' : 'Verifying...'}
+                          {!otpSent ? 'Sending Code...' : 'Verifying...'}
                         </div>
                       ) : (
-                        !otpSent ? 'Send OTP' : 'Verify OTP'
+                        !otpSent ? 'Send Verification Code' : 'Verify Code'
                       )}
                     </Button>
                   ) : (
@@ -577,78 +678,95 @@ if (provider !== 'google') {
                           {activeTab === 'login' ? 'Signing In...' : 'Creating Account...'}
                         </div>
                       ) : (
-                        activeTab === 'login' ? 'Sign In' : 'Create Account'
+                        activeTab === 'login' ? 'Continue with Email' : 'Create Account'
                       )}
                     </Button>
                   )}
                 </form>
+                
+                {activeTab !== 'phone' && (
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleGoogleLogin}
+                        disabled={isLoading}
+                        className="w-full"
+                      >
+                        {isLoading ? (
+                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <>
+                            <Globe className="w-4 h-4 mr-2" />
+                            Google
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          // Guest login functionality
+                          const guestData = {
+                            id: 'guest_' + Date.now(),
+                            displayName: 'Guest',
+                            plan: 'free',
+                            location: userLocation,
+                            authMethod: 'guest'
+                          };
+                          localStorage.setItem('kazini_user', JSON.stringify(guestData));
+                          onAuthSuccess(guestData, true, false);
+                        }}
+                        disabled={isLoading}
+                        className="w-full"
+                      >
+                        <User className="w-4 h-4 mr-2" />
+                        Guest
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {activeTab === 'login' && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="text-sm text-purple-600 hover:text-purple-700 hover:underline"
+                      onClick={() => {
+                        // Handle forgot password
+                        console.log('Forgot password clicked');
+                      }}
+                    >
+                      Forgot your password?
+                    </button>
+                  </div>
+                )}
               </Tabs>
               
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                  </div>
+              <div className="text-center text-xs text-gray-500">
+                <div className="flex items-center justify-center gap-1 mb-2">
+                  <Globe className="w-3 h-3" />
+                  <span>Global Platform • 50+ Languages</span>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => handleSocialLoginClick('google')}
-                    disabled={isLoading}
-                  >
-                    <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    Google
-                  </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => handleSocialLoginClick('guest')}
-                    disabled={isLoading}
-                  >
-                    <User className="w-4 h-4 mr-2" />
-                    Guest
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Forgot Password Link for Login Tab */}
-              {activeTab === 'login' && (
-                <div className="mt-4 text-center">
-                  <button
-                    type="button"
-                    className="text-sm text-purple-600 hover:text-purple-700 hover:underline"
-                    onClick={() => window.parent.postMessage({ type: 'SHOW_COMING_SOON', feature: 'Password Reset' }, '*')}
-                  >
-                    Forgot your password?
-                  </button>
-                </div>
-              )}
-              
-              <div className="mt-4 text-center">
-                <Badge variant="secondary" className="text-xs">
-                  <Globe className="w-3 h-3 mr-1" />
-                  Global Platform • 50+ Languages
-                </Badge>
               </div>
             </CardContent>
           </Card>
         </motion.div>
-       </div>
+      </div>
     </div>
   );
 };
 
 export default Auth;
+

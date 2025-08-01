@@ -29,10 +29,8 @@ import ComingSoonModal from './components/ComingSoonModal';
 import LiveDetection from './components/LiveDetection';
 import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
-import { handleAuthTokens } from './utils/authHandler';
+
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
-
-
 
 function App() {
   const [currentView, setCurrentView] = useState(ROUTES.HOME);
@@ -46,44 +44,29 @@ function App() {
   const [redirectAfterWelcome, setRedirectAfterWelcome] = useState(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
-  const [authInitializing, setAuthInitializing] = useState(true);
 
- useEffect(() => {
-  const runAuth = async () => {
-    try {
-      setIsLoaded(true);
+  // Handle URL hash tokens and session setup
+  useEffect(() => {
+    setIsLoaded(true);
+    
+    // Initialize authentication
+    initializeAuth(setUser);
+    
+    // Setup auth state listener
+    const authListener = setupAuthListener(setUser);
 
-      // ✅ Handle OAuth redirect tokens (e.g. from Google)
-      await handleAuthTokens(); // Make sure session is handled
+    // Listen for custom auth events
+    const handleShowAuth = (event) => {
+      setCurrentView('auth');
+    };
 
-      // ✅ Initialize authentication and fetch user (await this!)
-      await initializeAuth(setUser);
+    window.addEventListener('showAuth', handleShowAuth);
 
-      // ✅ Setup auth state listener
-      const authListener = setupAuthListener(setUser);
-
-      // ✅ Custom event listener (for modals or redirects)
-      const handleShowAuth = () => setCurrentView('auth');
-      window.addEventListener('showAuth', handleShowAuth);
-
-      // Cleanup
-      return () => {
-        authListener?.subscription?.unsubscribe();
-        window.removeEventListener('showAuth', handleShowAuth);
-      };
-    } catch (err) {
-      console.error("🔴 Auth initialization failed:", err);
-    } finally {
-      setAuthInitializing(false); // Allow page to proceed
-    }
-  };
-
-  runAuth();
-}, []);
-
-
-
-
+    return () => {
+      authListener?.subscription?.unsubscribe();
+      window.removeEventListener('showAuth', handleShowAuth);
+    };
+  }, []);
 
   const handleAuthSuccess = (userData, isNewUser = false, showWelcomeScreen = false) => {
     setUser(userData);
@@ -92,11 +75,11 @@ function App() {
     if (showWelcomeScreen) {
       setWelcomeData(userData);
       setShowWelcome(true);
-      setRedirectAfterWelcome(ROUTES.DASHBOARD);
+      setRedirectAfterWelcome(ROUTES.TRUTH_TEST);
     } else {
-      // Check for post-auth redirect
+      // Check for post-auth redirect, otherwise go to truth-test
       if (!handlePostAuthRedirect(setCurrentView)) {
-        setCurrentView(ROUTES.DASHBOARD);
+        setCurrentView(ROUTES.TRUTH_TEST);
       }
     }
   };
@@ -106,7 +89,7 @@ function App() {
     if (redirectAfterWelcome) {
       setCurrentView(redirectAfterWelcome);
     } else {
-      setCurrentView(ROUTES.DASHBOARD);
+      setCurrentView(ROUTES.TRUTH_TEST);
     }
   };
 
@@ -510,17 +493,16 @@ function App() {
     );
   };
 
-if (!isLoaded || authInitializing) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center">
-      <div className="text-center">
-        <img src={kaziniIcon} alt="Kazini" className="w-16 h-16 mx-auto mb-4 animate-pulse" />
-        <p className="text-gray-600">Initializing Kazini...</p>
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center">
+        <div className="text-center">
+          <img src={kaziniIcon} alt="Kazini" className="w-16 h-16 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Loading Kazini...</p>
+        </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   return (
     <div className="App">
