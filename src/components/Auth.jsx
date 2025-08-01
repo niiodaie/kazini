@@ -647,9 +647,10 @@ if (provider !== 'google') {
           </Card>
         </motion.div>
       </div>
-    </div>
+       </div>
   );
-}
+}; // ✅ End of Auth function
 
-export default Auth;
+export default Auth; // ✅ Good placement, outside all blocks
+
 
