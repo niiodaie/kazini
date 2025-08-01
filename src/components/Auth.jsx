@@ -250,24 +250,28 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     setIsLoading(false);
   }
 
-} else if (provider === 'google') {
+else if (provider === 'google') {
   setIsLoading(true);
-  try {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: 'https://auth.kazini.app/auth/v1/callback',
-      },
-    });
+  (async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'https://auth.kazini.app/auth/v1/callback',
+        },
+      });
 
-    if (error) {
-      setErrors({ general: 'Google login failed. Please try again.' });
+      if (error) {
+        setErrors({ general: 'Google login failed. Please try again.' });
+      }
+    } catch (error) {
+      setErrors({ general: 'An error occurred during Google login.' });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    setErrors({ general: 'An error occurred during Google login.' });
-  } finally {
-    setIsLoading(false);
-  }
+  })();
+}
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
