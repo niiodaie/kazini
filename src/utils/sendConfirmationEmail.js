@@ -1,6 +1,6 @@
 // utils/sendConfirmationEmail.js
 import { Resend } from 'resend';
-
+const resend = re_V16xxz9y_2gwQGMrDdaqrSZx5sugfrpJi
 export async function sendConfirmationEmail({ to, name, confirmUrl }) {
   try {
     const { data, error } = await resend.emails.send({
