@@ -650,7 +650,6 @@ if (provider !== 'google') {
        </div>
   );
 }; // ✅ End of Auth function
-
-export default Auth; // ✅ Good placement, outside all blocks
-
+    
+export default Auth;
 
