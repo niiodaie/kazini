@@ -649,7 +649,8 @@ if (provider !== 'google') {
       </div>
        </div>
   );
-}; // ✅ End of Auth function
+};
     
-export default Auth;
+
+      export default Auth;
 
