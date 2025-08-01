@@ -250,7 +250,16 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     setIsLoading(false);
   }
 
-else if (provider === 'google') {
+if (provider !== 'google') {
+  setIsLoading(true);
+  try {
+    // e.g., for other providers
+  } catch (error) {
+    setErrors({ general: error.message });
+  } finally {
+    setIsLoading(false);
+  }
+} else {
   setIsLoading(true);
   (async () => {
     try {
@@ -271,6 +280,7 @@ else if (provider === 'google') {
     }
   })();
 }
+
 
 
   return (
