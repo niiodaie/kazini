@@ -268,8 +268,6 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   } finally {
     setIsLoading(false);
   }
-}
-
 
         if (error) {
           setErrors({ general: 'Google login failed. Please try again.' });
