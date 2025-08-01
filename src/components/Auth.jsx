@@ -649,7 +649,7 @@ if (provider !== 'google') {
       </div>
     </div>
   );
-};
+}
 
 export default Auth;
 
