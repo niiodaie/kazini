@@ -66,7 +66,6 @@ export const handleEmailSignup = async (email, password, metadata = {}) => {
       email,
       password,
       options: {
-        //emailRedirectTo: `${window.location.origin}/auth-handler`,
         data: {
           display_name: metadata.displayName || email.split('@')[0],
           ...metadata,
