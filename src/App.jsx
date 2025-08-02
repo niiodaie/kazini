@@ -456,12 +456,12 @@ function App() {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="flex items-center space-x-3 mb-4 md:mb-0">
                 <img src={kaziniIcon} alt="Kazini" className="w-8 h-8" />
-                <img src={kaziniLogo} alt="Kazini" className="h-6" />
+                <span className="text-xl font-bold">Kazini</span>
               </div>
               
               <div className="flex space-x-6 mb-4 md:mb-0">
-                <a href="#" className="hover:text-pink-400 transition-colors">Privacy</a>
-                <a href="#" className="hover:text-pink-400 transition-colors">Terms</a>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors">Privacy</a>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors">Terms</a>
                 <a href="#" className="hover:text-pink-400 transition-colors">Support</a>
               </div>
 
