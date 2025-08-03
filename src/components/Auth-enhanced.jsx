@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock, AlertTriangle, Info, Zap } from 'lucide-react';
+import { supabase } from '../supabase';
 
 const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   // Basic state
@@ -27,6 +28,7 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
   const [localErrors, setLocalErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [otpPhone, setOtpPhone] = useState('');
 
   // Geolocation state
   const [location, setLocation] = useState({
@@ -58,6 +60,10 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       'auth.continueWithEmail': 'Continue with Email',
       'auth.createAccount': 'Create Account',
       'auth.sendMagicLink': 'Send Magic Link',
+      'auth.sendOTP': 'Send OTP',
+      'auth.verifyOTP': 'Verify OTP',
+      'auth.phoneNumber': 'Phone Number',
+      'auth.verificationCode': 'Verification Code',
       'general.guest': 'Guest',
       'general.google': 'Google'
     },
@@ -72,6 +78,10 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       'auth.continueWithEmail': 'Continuer avec l\'email',
       'auth.createAccount': 'Créer un compte',
       'auth.sendMagicLink': 'Envoyer le lien',
+      'auth.sendOTP': 'Envoyer le code',
+      'auth.verifyOTP': 'Vérifier le code',
+      'auth.phoneNumber': 'Numéro de téléphone',
+      'auth.verificationCode': 'Code de vérification',
       'general.guest': 'Invité',
       'general.google': 'Google'
     },
@@ -86,6 +96,10 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       'auth.continueWithEmail': 'Continuar con email',
       'auth.createAccount': 'Crear cuenta',
       'auth.sendMagicLink': 'Enviar enlace',
+      'auth.sendOTP': 'Enviar código',
+      'auth.verifyOTP': 'Verificar código',
+      'auth.phoneNumber': 'Número de teléfono',
+      'auth.verificationCode': 'Código de verificación',
       'general.guest': 'Invitado',
       'general.google': 'Google'
     }
@@ -206,6 +220,11 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
         [name]: null
       }));
     }
+    
+    // Clear success message when user starts typing
+    if (successMessage) {
+      setSuccessMessage('');
+    }
   };
 
   const handleGuestLogin = () => {
@@ -218,7 +237,7 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     };
     
     if (onAuthSuccess) {
-      onAuthSuccess(guestData, '/truth-test');
+      onAuthSuccess(guestData, '/dashboard');
     }
   };
 
@@ -240,22 +259,46 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       return;
     }
 
-    // Simulate login
-    setTimeout(() => {
-      const userData = {
-        id: 'user_' + Date.now(),
+    try {
+      // Real Supabase authentication
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
-        displayName: formData.email.split('@')[0],
-        plan: 'free',
-        authMethod: 'email',
-        emailConfirmed: true
-      };
-      
-      setIsLoading(false);
-      if (onAuthSuccess) {
-        onAuthSuccess(userData, '/truth-test');
+        password: formData.password,
+      });
+
+      if (error) {
+        // Handle specific Supabase errors
+        if (error.message.includes('Invalid login credentials')) {
+          setLocalErrors({ general: 'Invalid email or password. Please check your credentials and try again.' });
+        } else if (error.message.includes('Email not confirmed')) {
+          setLocalErrors({ general: 'Please verify your email address before signing in.' });
+        } else {
+          setLocalErrors({ general: error.message || 'Login failed. Please try again.' });
+        }
+        setIsLoading(false);
+        return;
       }
-    }, 1000);
+
+      if (data.user) {
+        const userData = {
+          id: data.user.id,
+          email: data.user.email,
+          displayName: data.user.user_metadata?.full_name || data.user.email.split('@')[0],
+          plan: data.user.user_metadata?.plan || 'free',
+          authMethod: 'email',
+          emailConfirmed: data.user.email_confirmed_at ? true : false
+        };
+        
+        setIsLoading(false);
+        if (onAuthSuccess) {
+          onAuthSuccess(userData, '/dashboard');
+        }
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setLocalErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setIsLoading(false);
+    }
   };
 
   const handleSignup = async (e) => {
@@ -276,28 +319,55 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       return;
     }
 
+    if (formData.password.length < 6) {
+      setLocalErrors({ password: 'Password must be at least 6 characters' });
+      setIsLoading(false);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setLocalErrors({ confirmPassword: 'Passwords do not match' });
       setIsLoading(false);
       return;
     }
 
-    // Simulate signup
-    setTimeout(() => {
-      const userData = {
-        id: 'user_' + Date.now(),
+    try {
+      // Real Supabase signup
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
-        displayName: formData.firstName || formData.email.split('@')[0],
-        plan: 'free',
-        authMethod: 'email',
-        emailConfirmed: true
-      };
-      
-      setIsLoading(false);
-      if (onAuthSuccess) {
-        onAuthSuccess(userData, '/truth-test');
+        password: formData.password,
+        options: {
+          data: {
+            full_name: `${formData.firstName} ${formData.lastName}`.trim() || formData.email.split('@')[0],
+            plan: 'free'
+          }
+        }
+      });
+
+      if (error) {
+        if (error.message.includes('User already registered')) {
+          setLocalErrors({ general: 'An account with this email already exists. Please try logging in instead.' });
+        } else {
+          setLocalErrors({ general: error.message || 'Signup failed. Please try again.' });
+        }
+        setIsLoading(false);
+        return;
       }
-    }, 1000);
+
+      if (data.user) {
+        setSuccessMessage('Account created successfully! Please check your email to verify your account before signing in.');
+        setIsLoading(false);
+        // Switch to login tab after successful signup
+        setTimeout(() => {
+          setActiveTab('login');
+          setSuccessMessage('');
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('Signup error:', err);
+      setLocalErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setIsLoading(false);
+    }
   };
 
   const handleMagicLink = async (e) => {
@@ -311,32 +381,154 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
       return;
     }
 
-    // Simulate magic link
-    setTimeout(() => {
+    try {
+      // Real Supabase magic link
+      const { error } = await supabase.auth.signInWithOtp({
+        email: formData.email,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        setLocalErrors({ general: error.message || 'Failed to send magic link. Please try again.' });
+        setIsLoading(false);
+        return;
+      }
+
       setSuccessMessage('Magic link sent! Check your email and click the link to sign in.');
       setIsLoading(false);
-    }, 1000);
+    } catch (err) {
+      console.error('Magic link error:', err);
+      setLocalErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleLogin = () => {
+  const handlePhoneOTP = async (e) => {
+    e.preventDefault();
     setIsLoading(true);
+    setLocalErrors({});
     
-    // Simulate Google login
-    setTimeout(() => {
-      const userData = {
-        id: 'google_' + Date.now(),
-        email: 'user@gmail.com',
-        displayName: 'Google User',
-        plan: 'free',
-        authMethod: 'google',
-        emailConfirmed: true
-      };
-      
+    if (!formData.phone) {
+      setLocalErrors({ phone: 'Phone number is required' });
       setIsLoading(false);
-      if (onAuthSuccess) {
-        onAuthSuccess(userData, '/truth-test');
+      return;
+    }
+
+    try {
+      // Format phone number
+      const formatPhoneNumber = (phone) => {
+        const cleaned = phone.replace(/\D/g, '');
+        
+        if (cleaned.length === 11 && cleaned.startsWith('1')) {
+          return `+${cleaned}`;
+        } else if (cleaned.length === 10) {
+          return `+1${cleaned}`;
+        } else if (phone.startsWith('+')) {
+          return phone;
+        } else {
+          return `+1${cleaned}`;
+        }
+      };
+
+      const formattedPhone = formatPhoneNumber(formData.phone);
+
+      // Real Supabase phone OTP
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+      });
+
+      if (error) {
+        setLocalErrors({ general: error.message || 'Failed to send OTP. Please try again.' });
+        setIsLoading(false);
+        return;
       }
-    }, 1000);
+
+      setOtpSent(true);
+      setOtpPhone(formattedPhone);
+      setSuccessMessage('Verification code sent to your phone!');
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Phone OTP error:', err);
+      setLocalErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setLocalErrors({});
+    
+    if (!formData.otp) {
+      setLocalErrors({ otp: 'Verification code is required' });
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Real Supabase OTP verification
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: otpPhone,
+        token: formData.otp,
+        type: 'sms'
+      });
+
+      if (error) {
+        setLocalErrors({ general: error.message || 'Invalid verification code. Please try again.' });
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        const userData = {
+          id: data.user.id,
+          phone: data.user.phone,
+          displayName: data.user.user_metadata?.full_name || 'Phone User',
+          plan: data.user.user_metadata?.plan || 'free',
+          authMethod: 'phone',
+          emailConfirmed: true // Phone verification counts as confirmed
+        };
+        
+        setIsLoading(false);
+        if (onAuthSuccess) {
+          onAuthSuccess(userData, '/dashboard');
+        }
+      }
+    } catch (err) {
+      console.error('OTP verification error:', err);
+      setLocalErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setLocalErrors({});
+    
+    try {
+      // Real Supabase Google OAuth
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        setLocalErrors({ general: error.message || 'Google login failed. Please try again.' });
+        setIsLoading(false);
+        return;
+      }
+
+      // OAuth will redirect, so we don't need to handle success here
+      // The auth state change will be handled by the auth listener
+    } catch (err) {
+      console.error('Google login error:', err);
+      setLocalErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setIsLoading(false);
+    }
   };
 
   const changeLanguage = (langCode) => {
@@ -410,11 +602,22 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
                 <TabsTrigger value="signup">{t('auth.signup')}</TabsTrigger>
                 <TabsTrigger value="magic">{t('auth.magic')}</TabsTrigger>
+                <TabsTrigger value="phone">{t('auth.phone')}</TabsTrigger>
               </TabsList>
+
+              {/* General Error Display */}
+              {localErrors.general && (
+                <Alert className="border-red-200 bg-red-50 mt-4">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    {localErrors.general}
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Login Tab */}
               <TabsContent value="login" className="space-y-4">
@@ -620,6 +823,93 @@ const AuthEnhanced = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                     {isLoading ? 'Sending Link...' : t('auth.sendMagicLink')}
                   </Button>
                 </form>
+              </TabsContent>
+
+              {/* Phone Tab */}
+              <TabsContent value="phone" className="space-y-4">
+                {!otpSent ? (
+                  <form onSubmit={handlePhoneOTP} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className="text-sm font-medium">
+                        {t('auth.phoneNumber')}
+                      </Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <Input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          placeholder="+1 (555) 123-4567"
+                          className="pl-10"
+                        />
+                      </div>
+                      {localErrors.phone && (
+                        <p className="text-sm text-red-600">{localErrors.phone}</p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Sending Code...' : t('auth.sendOTP')}
+                    </Button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyOTP} className="space-y-4">
+                    <div className="text-center mb-4">
+                      <p className="text-sm text-gray-600">
+                        Code sent to {otpPhone}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="otp" className="text-sm font-medium">
+                        {t('auth.verificationCode')}
+                      </Label>
+                      <div className="relative">
+                        <MessageSquare className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <Input
+                          id="otp"
+                          name="otp"
+                          type="text"
+                          value={formData.otp}
+                          onChange={handleInputChange}
+                          placeholder="123456"
+                          className="pl-10 text-center text-lg tracking-widest"
+                          maxLength={6}
+                        />
+                      </div>
+                      {localErrors.otp && (
+                        <p className="text-sm text-red-600">{localErrors.otp}</p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Verifying...' : t('auth.verifyOTP')}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setFormData(prev => ({ ...prev, otp: '' }));
+                        setLocalErrors({});
+                      }}
+                    >
+                      Back to Phone Number
+                    </Button>
+                  </form>
+                )}
               </TabsContent>
             </Tabs>
 

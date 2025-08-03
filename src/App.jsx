@@ -75,11 +75,11 @@ function App() {
     if (showWelcomeScreen) {
       setWelcomeData(userData);
       setShowWelcome(true);
-      setRedirectAfterWelcome(ROUTES.TRUTH_TEST);
+      setRedirectAfterWelcome(ROUTES.DASHBOARD);
     } else {
-      // Check for post-auth redirect, otherwise go to truth-test
+      // Check for post-auth redirect, otherwise go to dashboard
       if (!handlePostAuthRedirect(setCurrentView)) {
-        setCurrentView(ROUTES.TRUTH_TEST);
+        setCurrentView(ROUTES.DASHBOARD);
       }
     }
   };
@@ -89,7 +89,7 @@ function App() {
     if (redirectAfterWelcome) {
       setCurrentView(redirectAfterWelcome);
     } else {
-      setCurrentView(ROUTES.TRUTH_TEST);
+      setCurrentView(ROUTES.DASHBOARD);
     }
   };
 
@@ -295,7 +295,7 @@ function App() {
         <nav className="relative z-10 flex justify-between items-center p-6">
           <div className="flex items-center space-x-3">
             <img src={kaziniIcon} alt="Kazini" className="w-10 h-10 heart-pulse" />
-            <img src={kaziniLogo} alt="Kazini" className="h-8" />
+            <span className="text-xl font-bold text-gray-800">Kazini</span>
           </div>
           <div className="flex items-center space-x-4">
             <button
