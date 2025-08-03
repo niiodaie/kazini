@@ -17,7 +17,7 @@ import LiveSessionSetup from './components/LiveSessionSetup';
 import AsyncLinkGenerator from './components/AsyncLinkGenerator';
 import TrustIndex from './components/TrustIndex';
 import History from './components/History';
-import Auth from './components/Auth';
+import AuthEnhanced from './components/Auth-enhanced';
 import UserProfile from './components/UserProfile';
 import GlobalSettings from './components/GlobalSettings';
 import Pricing from './components/Pricing';
@@ -148,12 +148,12 @@ function App() {
   const renderView = () => {
     // Show auth for logged-out users trying to access protected routes
     if (!isAuthenticated(user) && [ROUTES.COUPLE, ROUTES.COUPLE_LIVE, ROUTES.COUPLE_ASYNC, ROUTES.PROFILE, ROUTES.HISTORY, ROUTES.TRUST_INDEX, ROUTES.AI_SCHEDULER].includes(currentView)) {
-      return <Auth onBack={() => setCurrentView(ROUTES.HOME)} onAuthSuccess={handleAuthSuccess} />;
+      return <AuthEnhanced onBack={() => setCurrentView(ROUTES.HOME)} onAuthSuccess={handleAuthSuccess} />;
     }
 
     switch (currentView) {
       case ROUTES.AUTH:
-        return <Auth onBack={() => setCurrentView(ROUTES.HOME)} onAuthSuccess={handleAuthSuccess} />;
+        return <AuthEnhanced onBack={() => setCurrentView(ROUTES.HOME)} onAuthSuccess={handleAuthSuccess} />;
       case ROUTES.TRUTH_TEST:
         return <TruthTest onBack={() => setCurrentView(ROUTES.HOME)} user={user} />;
       case ROUTES.COUPLE:
@@ -278,10 +278,23 @@ function App() {
   const renderHero = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 relative overflow-hidden">
+        {/* Floating Hearts Animation */}
+        <div className="emotional-motifs">
+          <div className="motif">💕</div>
+          <div className="motif">💖</div>
+          <div className="motif">💗</div>
+          <div className="motif">💝</div>
+          <div className="motif">💞</div>
+          <div className="motif">💓</div>
+        </div>
+        
+        {/* Light Movement Effect */}
+        <div className="light-movement"></div>
+        
         {/* Navigation */}
         <nav className="relative z-10 flex justify-between items-center p-6">
           <div className="flex items-center space-x-3">
-            <img src={kaziniIcon} alt="Kazini" className="w-10 h-10" />
+            <img src={kaziniIcon} alt="Kazini" className="w-10 h-10 heart-pulse" />
             <img src={kaziniLogo} alt="Kazini" className="h-8" />
           </div>
           <div className="flex items-center space-x-4">
@@ -341,7 +354,7 @@ function App() {
             >
               <button
                 onClick={handleTruthTest}
-                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 floating-animation"
               >
                 <MessageCircle className="w-5 h-5" />
                 Start Truth Test
@@ -349,7 +362,8 @@ function App() {
 
               <button
                 onClick={handleGoLive}
-                className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 relative"
+                className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 relative floating-animation"
+                style={{ animationDelay: '1s' }}
               >
                 <Camera className="w-5 h-5" />
                 Go Live
@@ -358,7 +372,8 @@ function App() {
 
               <button
                 onClick={handleCoupleMode}
-                className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 floating-animation couple-glow"
+                style={{ animationDelay: '2s' }}
               >
                 <Users className="w-5 h-5" />
                 Couple Mode
@@ -366,7 +381,8 @@ function App() {
 
               <button
                 onClick={handleAIScheduler}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 floating-animation"
+                style={{ animationDelay: '3s' }}
               >
                 <Calendar className="w-5 h-5" />
                 AI Scheduler
@@ -374,7 +390,8 @@ function App() {
 
               <button
                 onClick={handleTruthCircle}
-                className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 floating-animation pulse-glow"
+                style={{ animationDelay: '4s' }}
               >
                 <Hash className="w-5 h-5" />
                 Truth Circle

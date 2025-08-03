@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { upsertUserProfile } from '../utils/authUtils';
 
