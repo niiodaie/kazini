@@ -7,33 +7,15 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock, AlertTriangle, Info, Zap } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Globe, MapPin, Phone, MessageSquare, CheckCircle, Clock, AlertTriangle, Info } from 'lucide-react';
 
-// Import the new useAuth hook
-import { useAuth } from '../hooks/useAuth';
-import { useGeolocation } from '../hooks/useGeolocation';
-import { useLanguage } from '../hooks/useLanguage';
+// Import Supabase
+import { supabase } from '../supabase';
+import { upsertUserProfile } from '../utils/authUtils';
 
 const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
-  const {
-    isLoading,
-    error,
-    login,
-    signup,
-    loginWithMagicLink,
-    loginWithPhone,
-    verifyPhoneOTP,
-    loginWithGoogle,
-    loginAsGuest,
-    resendEmailVerification,
-    clearError,
-    needsEmailVerification
-  } = useAuth();
-
-  const { location, getFormattedLocation, getLocationFlag } = useGeolocation();
-  const { t, getCurrentLanguageInfo } = useLanguage();
-
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   const [formData, setFormData] = useState({
     email: '',
@@ -45,12 +27,28 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     otp: '',
     acceptTerms: false
   });
-  const [localErrors, setLocalErrors] = useState({});
+  const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [userLocation, setUserLocation] = useState({ country: '', city: '' });
   const [otpSent, setOtpSent] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
   const [phoneVerified, setPhoneVerified] = useState(false);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [emailVerificationRequired, setEmailVerificationRequired] = useState(false);
+
+  useEffect(() => {
+    // Detect user location
+    const detectLocation = async () => {
+      try {
+        // Mock location detection - in real app, use geolocation API
+        setTimeout(() => {
+          setUserLocation({ country: 'United States', city: 'New York' });
+        }, 1000);
+      } catch (error) {
+        console.error('Location detection failed:', error);
+      }
+    };
+    detectLocation();
+  }, []);
 
   useEffect(() => {
     let interval;
@@ -62,80 +60,135 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     return () => clearInterval(interval);
   }, [otpTimer]);
 
+  // Format phone number to international format
+  const formatPhoneNumber = (phone) => {
+    const cleaned = phone.replace(/\D/g, '');
+    
+    if (cleaned.length === 11 && cleaned.startsWith('1')) {
+      return `+${cleaned}`;
+    } else if (cleaned.length === 10) {
+      return `+1${cleaned}`;
+    } else if (phone.startsWith('+')) {
+      return phone;
+    } else {
+      return `+1${cleaned}`;
+    }
+  };
+
   // Clear all messages and errors
   const clearMessages = () => {
-    setLocalErrors({});
+    setErrors({});
     setSuccessMessage('');
-    clearError();
+    setEmailVerificationRequired(false);
   };
 
-  // Handle authentication success with plan-based routing
-  const handleAuthSuccess = (result) => {
-    if (result.success && result.user) {
-      onAuthSuccess(result.user, false, false);
-      
-      // Use the redirectTo from the auth result (plan-based routing)
-      if (result.redirectTo) {
-        // Emit custom event for routing
-        window.dispatchEvent(new CustomEvent('authRedirect', { 
-          detail: { route: result.redirectTo, user: result.user } 
-        }));
-      }
-    }
-  };
-
-  // Handle Magic Link Login
-  const handleMagicLink = async () => {
-    if (!formData.email) {
-      setLocalErrors({ email: 'Please enter your email address' });
-      return;
-    }
-
+  // Handle Google OAuth
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
     clearMessages();
-    const result = await loginWithMagicLink(formData.email);
     
-    if (result.success) {
-      setMagicLinkSent(true);
-      setSuccessMessage(result.message);
-    } else {
-      setLocalErrors({ general: result.error });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        console.error('Google OAuth error:', error);
+        setErrors({ general: 'Google login failed. Please try again.' });
+      }
+    } catch (error) {
+      console.error('Google OAuth exception:', error);
+      setErrors({ general: 'An error occurred during Google login.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Send OTP
+  // Send OTP with proper phone formatting
   const sendOTP = async () => {
     if (!formData.phone) {
-      setLocalErrors({ phone: 'Please enter your phone number' });
+      setErrors({ phone: 'Please enter your phone number' });
       return;
     }
 
+    const formattedPhone = formatPhoneNumber(formData.phone);
+    console.log('Sending OTP to:', formattedPhone);
+
+    setIsLoading(true);
     clearMessages();
-    const result = await loginWithPhone(formData.phone);
     
-    if (result.success) {
-      setOtpSent(true);
-      setOtpTimer(60);
-      setSuccessMessage(result.message);
-      setFormData(prev => ({ ...prev, phone: result.phone }));
-    } else {
-      setLocalErrors({ phone: result.error });
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+      });
+
+      if (error) {
+        console.error('OTP Error:', error);
+        setErrors({ phone: `Failed to send OTP: ${error.message}` });
+      } else {
+        setOtpSent(true);
+        setOtpTimer(60);
+        setSuccessMessage('Verification code sent to your phone!');
+        setFormData(prev => ({ ...prev, phone: formattedPhone }));
+      }
+    } catch (err) {
+      console.error('OTP Exception:', err);
+      setErrors({ phone: 'An unexpected error occurred.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Verify OTP
-  const handleVerifyOTP = async () => {
+  const verifyOTP = async () => {
     if (!formData.otp) {
-      setLocalErrors({ otp: 'Please enter the verification code' });
+      setErrors({ otp: 'Please enter the verification code' });
       return;
     }
 
+    setIsLoading(true);
     clearMessages();
-    const result = await verifyPhoneOTP(formData.phone, formData.otp);
     
-    if (result.success) {
-      handleAuthSuccess(result);
-    } else {
-      setLocalErrors({ otp: result.error });
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formData.phone,
+        token: formData.otp,
+        type: 'sms'
+      });
+
+      if (error) {
+        console.error('OTP Verification Error:', error);
+        setErrors({ otp: 'Invalid verification code. Please try again.' });
+        return;
+      }
+
+      if (data?.user) {
+        // Create user profile
+        const profileData = await upsertUserProfile(data.user);
+        
+        const userData = {
+          id: data.user.id,
+          phone: formData.phone,
+          displayName: profileData.display_name || 'Phone User',
+          plan: profileData.plan || 'free',
+          location: userLocation,
+          authMethod: 'phone',
+          supabaseUser: data.user
+        };
+
+        localStorage.setItem('kazini_user', JSON.stringify(userData));
+        
+        // Redirect to truth-test on successful verification
+        onAuthSuccess(userData, true, false);
+      }
+    } catch (err) {
+      console.error('OTP Verification Exception:', err);
+      setErrors({ otp: 'Verification failed. Please try again.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -166,12 +219,9 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     } else if (activeTab === 'phone') {
       if (!formData.phone) newErrors.phone = 'Phone number is required';
       if (otpSent && !formData.otp) newErrors.otp = 'Verification code is required';
-    } else if (activeTab === 'magic') {
-      if (!formData.email) newErrors.email = 'Email is required';
-      else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email';
     }
 
-    setLocalErrors(newErrors);
+    setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
@@ -193,8 +243,8 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     }
     
     // Clear error when user starts typing
-    if (localErrors[name]) {
-      setLocalErrors(prev => ({ ...prev, [name]: '' }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
@@ -202,32 +252,98 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    setIsLoading(true);
     clearMessages();
     
-    if (activeTab === 'login') {
-      const result = await login(formData.email, formData.password);
-      
-      if (result.success) {
-        handleAuthSuccess(result);
-      } else if (result.needsVerification) {
-        // Handle email verification needed
-        setLocalErrors({ general: result.error || error });
-      } else {
-        setLocalErrors({ general: result.error || error });
+    try {
+      if (activeTab === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (error) {
+          console.error('Login error:', error);
+          
+          // Provide specific error messages
+          if (error.message.includes('Invalid login credentials')) {
+            setErrors({ general: 'Invalid email or password. Please check your credentials and try again.' });
+          } else if (error.message.includes('Email not confirmed')) {
+            setErrors({ general: 'Please verify your email address before signing in.' });
+          } else if (error.message.includes('Too many requests')) {
+            setErrors({ general: 'Too many login attempts. Please wait a moment and try again.' });
+          } else {
+            setErrors({ general: error.message || 'Login failed. Please try again.' });
+          }
+          return;
+        }
+
+        if (data?.user) {
+          // Check if email is verified
+          if (!data.user.email_confirmed_at) {
+            setEmailVerificationRequired(true);
+            setErrors({ general: 'Please verify your email address to access all features.' });
+            return;
+          }
+
+          // Create user profile
+          const profileData = await upsertUserProfile(data.user);
+          
+          const userData = {
+            id: data.user.id,
+            email: formData.email,
+            displayName: profileData.display_name || 
+                        data.user.user_metadata?.firstName || 
+                        data.user.email?.split('@')[0] || 
+                        'User',
+            plan: profileData.plan || 'free',
+            location: userLocation,
+            authMethod: 'email',
+            supabaseUser: data.user
+          };
+
+          localStorage.setItem('kazini_user', JSON.stringify(userData));
+          
+          // Redirect to truth-test on successful login
+          onAuthSuccess(userData, false, false);
+        }
+      } else if (activeTab === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+            },
+          },
+        });
+
+        if (error) {
+          console.error('Signup error:', error);
+          
+          // Provide specific error messages
+          if (error.message.includes('User already registered')) {
+            setErrors({ general: 'An account with this email already exists. Please try logging in instead.' });
+          } else if (error.message.includes('Password should be')) {
+            setErrors({ general: 'Password is too weak. Please choose a stronger password.' });
+          } else {
+            setErrors({ general: error.message || 'Failed to create account. Please try again.' });
+          }
+          return;
+        }
+
+        if (data?.user) {
+          setSuccessMessage('Account created successfully! Please check your email to verify your account.');
+          setActiveTab('login');
+          setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+        }
       }
-    } else if (activeTab === 'signup') {
-      const result = await signup(formData.email, formData.password, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-      });
-      
-      if (result.success) {
-        setSuccessMessage(result.message);
-        setActiveTab('login');
-        setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
-      } else {
-        setLocalErrors({ general: result.error || error });
-      }
+    } catch (error) {
+      console.error('Auth exception:', error);
+      setErrors({ general: 'A network error occurred. Please check your connection and try again.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -253,7 +369,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                 </Button>
                 <div className="flex-1">
                   <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    {t('auth.welcome')}
+                    Welcome to Kazini
                   </CardTitle>
                 </div>
               </div>
@@ -262,12 +378,8 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
             <CardContent className="space-y-6">
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-4">
-                  <span className="text-lg">{getLocationFlag()}</span>
                   <MapPin className="w-4 h-4" />
-                  <span>{getFormattedLocation()}</span>
-                  <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {getCurrentLanguageInfo().flag} {getCurrentLanguageInfo().name}
-                  </span>
+                  <span>{userLocation.city}, {userLocation.country}</span>
                 </div>
               </div>
 
@@ -282,39 +394,30 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
               )}
 
               {/* Email Verification Required */}
-              {needsEmailVerification && (
+              {emailVerificationRequired && (
                 <Alert className="border-yellow-200 bg-yellow-50">
                   <Info className="h-4 w-4 text-yellow-600" />
                   <AlertDescription className="text-yellow-800">
-                    Please verify your email address to access all features.
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={resendEmailVerification}
-                      className="p-0 h-auto ml-2 text-yellow-800 underline"
-                    >
-                      Resend Link
-                    </Button>
+                    Please check your email and click the verification link to access all features.
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* General Error */}
-              {(localErrors.general || error) && (
+              {errors.general && (
                 <Alert className="border-red-200 bg-red-50">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                   <AlertDescription className="text-red-800">
-                    {localErrors.general || error}
+                    {errors.general}
                   </AlertDescription>
                 </Alert>
               )}
               
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-6">
-                  <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
-                  <TabsTrigger value="signup">{t('auth.signup')}</TabsTrigger>
-                  <TabsTrigger value="magic">{t('auth.magic')}</TabsTrigger>
-                  <TabsTrigger value="phone">{t('auth.phone')}</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                  <TabsTrigger value="phone">Phone</TabsTrigger>
                 </TabsList>
                 
                 <form onSubmit={handleSubmit}>
@@ -334,7 +437,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                           disabled={isLoading}
                         />
                       </div>
-                      {localErrors.email && <p className="text-sm text-red-500">{localErrors.email}</p>}
+                      {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
                     </div>
                     
                     <div className="space-y-2">
@@ -360,7 +463,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                      {localErrors.password && <p className="text-sm text-red-500">{localErrors.password}</p>}
+                      {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
                     </div>
                   </TabsContent>
                   
@@ -376,7 +479,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                           onChange={handleInputChange}
                           disabled={isLoading}
                         />
-                        {localErrors.firstName && <p className="text-sm text-red-500">{localErrors.firstName}</p>}
+                        {errors.firstName && <p className="text-sm text-red-500">{errors.firstName}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="lastName">Last Name</Label>
@@ -388,7 +491,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                           onChange={handleInputChange}
                           disabled={isLoading}
                         />
-                        {localErrors.lastName && <p className="text-sm text-red-500">{localErrors.lastName}</p>}
+                        {errors.lastName && <p className="text-sm text-red-500">{errors.lastName}</p>}
                       </div>
                     </div>
                     
@@ -407,7 +510,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                           disabled={isLoading}
                         />
                       </div>
-                      {localErrors.email && <p className="text-sm text-red-500">{localErrors.email}</p>}
+                      {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
                     </div>
                     
                     <div className="space-y-2">
@@ -433,7 +536,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                      {localErrors.password && <p className="text-sm text-red-500">{localErrors.password}</p>}
+                      {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
                     </div>
                     
                     <div className="space-y-2">
@@ -451,7 +554,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                           disabled={isLoading}
                         />
                       </div>
-                      {localErrors.confirmPassword && <p className="text-sm text-red-500">{localErrors.confirmPassword}</p>}
+                      {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
                     </div>
                     
                     <div className="flex items-center space-x-2">
@@ -465,52 +568,10 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         disabled={isLoading}
                       />
                       <Label htmlFor="acceptTerms" className="text-sm">
-                        I agree to the{' '}
-                        <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                          Terms
-                        </a>{' '}
-                        and{' '}
-                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                          Privacy Policy
-                        </a>
+                        I agree to the Terms of Service and Privacy Policy
                       </Label>
                     </div>
-                    {localErrors.acceptTerms && <p className="text-sm text-red-500">{localErrors.acceptTerms}</p>}
-                  </TabsContent>
-                  
-                  <TabsContent value="magic" className="space-y-4">
-                    <div className="text-center mb-4">
-                      <Zap className="w-12 h-12 mx-auto text-purple-500 mb-2" />
-                      <h3 className="text-lg font-semibold">Magic Link Login</h3>
-                      <p className="text-sm text-gray-600">No password needed - we'll send you a secure link</p>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          className="pl-10"
-                          disabled={isLoading || magicLinkSent}
-                        />
-                      </div>
-                      {localErrors.email && <p className="text-sm text-red-500">{localErrors.email}</p>}
-                    </div>
-                    
-                    {magicLinkSent && (
-                      <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                        <CheckCircle className="w-8 h-8 mx-auto text-green-600 mb-2" />
-                        <p className="text-sm text-green-800">
-                          Magic link sent! Check your email and click the link to sign in.
-                        </p>
-                      </div>
-                    )}
+                    {errors.acceptTerms && <p className="text-sm text-red-500">{errors.acceptTerms}</p>}
                   </TabsContent>
                   
                   <TabsContent value="phone" className="space-y-4">
@@ -592,33 +653,17 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                   {activeTab === 'phone' ? (
                     <Button
                       type="button"
-                      onClick={otpSent ? handleVerifyOTP : sendOTP}
+                      onClick={otpSent ? verifyOTP : sendOTP}
                       disabled={isLoading}
                       className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     >
                       {isLoading ? (
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {!otpSent ? t('auth.sendingCode') : t('auth.verifying')}
+                          {!otpSent ? 'Sending Code...' : 'Verifying...'}
                         </div>
                       ) : (
-                        !otpSent ? t('auth.sendVerificationCode') : t('auth.verifyCode')
-                      )}
-                    </Button>
-                  ) : activeTab === 'magic' ? (
-                    <Button
-                      type="button"
-                      onClick={handleMagicLink}
-                      disabled={isLoading || magicLinkSent}
-                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                    >
-                      {isLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {t('auth.sendingLink')}
-                        </div>
-                      ) : (
-                        magicLinkSent ? '✓ Link Sent' : t('auth.sendMagicLink')
+                        !otpSent ? 'Send Verification Code' : 'Verify Code'
                       )}
                     </Button>
                   ) : (
@@ -630,16 +675,16 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                       {isLoading ? (
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          {activeTab === 'login' ? t('auth.signingIn') : t('auth.creatingAccount')}
+                          {activeTab === 'login' ? 'Signing In...' : 'Creating Account...'}
                         </div>
                       ) : (
-                        activeTab === 'login' ? t('auth.continueWithEmail') : t('auth.createAccount')
+                        activeTab === 'login' ? 'Continue with Email' : 'Create Account'
                       )}
                     </Button>
                   )}
                 </form>
                 
-                {(activeTab === 'login' || activeTab === 'signup') && (
+                {activeTab !== 'phone' && (
                   <div className="space-y-4">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
@@ -654,7 +699,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={loginWithGoogle}
+                        onClick={handleGoogleLogin}
                         disabled={isLoading}
                         className="w-full"
                       >
@@ -663,7 +708,7 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         ) : (
                           <>
                             <Globe className="w-4 h-4 mr-2" />
-                            {t('general.google')}
+                            Google
                           </>
                         )}
                       </Button>
@@ -672,16 +717,22 @@ const Auth = ({ onBack, onAuthSuccess, redirectTo = null }) => {
                         type="button"
                         variant="outline"
                         onClick={() => {
-                          const result = loginAsGuest();
-                          if (result.success) {
-                            handleAuthSuccess(result);
-                          }
+                          // Guest login functionality
+                          const guestData = {
+                            id: 'guest_' + Date.now(),
+                            displayName: 'Guest',
+                            plan: 'free',
+                            location: userLocation,
+                            authMethod: 'guest'
+                          };
+                          localStorage.setItem('kazini_user', JSON.stringify(guestData));
+                          onAuthSuccess(guestData, true, false);
                         }}
                         disabled={isLoading}
                         className="w-full"
                       >
                         <User className="w-4 h-4 mr-2" />
-                        {t('general.guest')}
+                        Guest
                       </Button>
                     </div>
                   </div>

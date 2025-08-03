@@ -1,338 +1,240 @@
 import React, { useState } from 'react';
-import { plans } from '../plans';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { PLANS } from '../plans';
+import {
+  Crown, Check, X, ArrowLeft, Star, Zap, Shield,
+  Heart, Users, Video, Download, Headphones, Globe, Sparkles
+} from 'lucide-react';
 
 const Pricing = ({ onBack, onUpgrade }) => {
-  const [selectedPlan, setSelectedPlan] = useState('pro');
   const [billingCycle, setBillingCycle] = useState('yearly');
+  
+  // Get current user plan (default to free for new users)
+  const user = JSON.parse(localStorage.getItem('kazini_user') || '{}');
+  const currentPlan = user.plan || 'free';
 
-  const handlePlanSelect = (planId) => {
-    setSelectedPlan(planId);
-  };
-
-  const handleSubscribe = (planId) => {
-    if (onUpgrade) {
-      onUpgrade(planId);
+  // Handle back to home
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      window.location.href = '/';
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={onBack}
-              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              ← Back to Home
-            </button>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <img src="/kazinilogo.png" alt="Kazini" className="w-8 h-8" />
-            <span className="text-xl font-bold text-gray-800">Kazini</span>
-          </div>
-          
-          <div className="text-sm text-gray-600">
-            Current: Free
-          </div>
-        </div>
-      </nav>
+  // Handle plan selection
+  const handlePlanSelect = (plan) => {
+    if (plan.id === 'free') {
+      // For free plan, just update user plan
+      const updatedUser = { ...user, plan: 'free' };
+      localStorage.setItem('kazini_user', JSON.stringify(updatedUser));
+      window.location.href = '/';
+    } else if (onUpgrade) {
+      onUpgrade(plan);
+    } else {
+      // Open billing modal or redirect to payment
+      window.open(plan.link, '_blank');
+    }
+  };
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-12">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-            Choose Your Plan
-          </h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Start free and upgrade as your relationship journey grows
-          </p>
-          
-          {/* Billing Toggle */}
-          <div className="flex items-center justify-center space-x-4 mb-8">
-            <span className={`text-sm ${billingCycle === 'monthly' ? 'text-gray-800 font-semibold' : 'text-gray-500'}`}>
-              Monthly
-            </span>
-            <button
-              onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                billingCycle === 'yearly' ? 'bg-purple-600' : 'bg-gray-300'
-              }`}
+  // Get plans to display based on billing cycle
+  const getDisplayPlans = () => {
+    const plans = [];
+    
+    // Always show Free plan
+    plans.push(PLANS.free);
+    
+    // Add Pro plan based on billing cycle
+    if (billingCycle === 'yearly') {
+      plans.push(PLANS.pro_yearly);
+      plans.push(PLANS.enterprise_yearly);
+    } else {
+      plans.push(PLANS.pro_monthly);
+      plans.push(PLANS.enterprise_monthly);
+    }
+    
+    return plans;
+  };
+
+  const displayPlans = getDisplayPlans();
+
+  return (
+    <div className="min-h-screen romantic-bg">
+      {/* Floating motifs */}
+      <div className="emotional-motifs">
+        <div className="motif">💘</div>
+        <div className="motif">❣️</div>
+        <div className="motif">💖</div>
+        <div className="motif">💓</div>
+        <div className="motif">💞</div>
+        <div className="motif">❤️</div>
+      </div>
+
+      {/* Light overlay */}
+      <div className="light-movement"></div>
+
+      <div className="relative z-10 min-h-screen p-4">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <Button
+              variant="ghost"
+              onClick={handleBack}
+              className="text-white hover:bg-white/10"
             >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-            <span className={`text-sm ${billingCycle === 'yearly' ? 'text-gray-800 font-semibold' : 'text-gray-500'}`}>
-              Yearly
-            </span>
-            {billingCycle === 'yearly' && (
-              <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
-                Save 17%
-              </span>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+
+            {currentPlan && (
+              <Badge className="bg-white/20 text-white border-white/30">
+                Current: {currentPlan === 'free' ? 'Free' : currentPlan === 'pro' ? 'Pro' : 'Enterprise'}
+              </Badge>
             )}
           </div>
-        </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {/* Free Plan */}
-          <div className={`bg-white rounded-2xl shadow-lg border-2 p-8 relative ${
-            selectedPlan === 'free' ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200'
-          }`}>
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center mb-4">
-                <span className="text-2xl">💝</span>
-                <h3 className="text-2xl font-bold text-gray-800 ml-2">Kazini Free</h3>
-              </div>
-              <div className="text-4xl font-bold text-gray-800 mb-2">$0</div>
-              <div className="text-gray-600">$0/month billed annually</div>
-            </div>
-            
-            <div className="space-y-4 mb-8">
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">3 Truth Tests per month</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Solo Mode only (no Couple Mode)</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Limited Trust Report</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">View Last 3 Test Results</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-red-500 mt-1">✗</span>
-                <span className="text-gray-500">No Export / No History Access</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Upgrade prompts for locked features</span>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => handlePlanSelect('free')}
-              className="w-full py-3 px-6 bg-gray-100 text-gray-800 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-            >
-              Current Plan
-            </button>
-          </div>
-
-          {/* Pro Plan */}
-          <div className={`bg-white rounded-2xl shadow-lg border-2 p-8 relative ${
-            selectedPlan === 'pro' ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200'
-          }`}>
-            {/* Most Popular Badge */}
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-              <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                Most Popular
-              </span>
-            </div>
-            
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center mb-4">
-                <span className="text-2xl">💎</span>
-                <h3 className="text-2xl font-bold text-gray-800 ml-2">Kazini Pro</h3>
-              </div>
-              <div className="text-4xl font-bold text-gray-800 mb-2">
-                ${billingCycle === 'yearly' ? '99' : '119'}/year
-              </div>
-              {billingCycle === 'yearly' && (
-                <div className="text-sm text-green-600 font-semibold mb-2">17% off</div>
-              )}
-              <div className="text-gray-600">
-                ${billingCycle === 'yearly' ? '8.25' : '9.92'}/month billed annually
-              </div>
-              {billingCycle === 'yearly' && (
-                <div className="text-sm text-gray-500 line-through">
-                  Was $119.88/year
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-4 mb-8">
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Unlimited Truth Tests</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Advanced AI Analysis</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Couple Mode (Live & Async)</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Trust Index Dashboard</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Full History & Analytics</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Priority Support</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Export Reports</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Mobile App Access</span>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => handleSubscribe('pro')}
-              className="w-full py-3 px-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105"
-            >
-              Subscribe to Kazini Pro
-            </button>
-          </div>
-
-          {/* Enterprise Plan */}
-          <div className={`bg-white rounded-2xl shadow-lg border-2 p-8 relative ${
-            selectedPlan === 'enterprise' ? 'border-purple-500 ring-2 ring-purple-200' : 'border-gray-200'
-          }`}>
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center mb-4">
-                <span className="text-2xl">🏢</span>
-                <h3 className="text-2xl font-bold text-gray-800 ml-2">Kazini Enterprise</h3>
-              </div>
-              <div className="text-4xl font-bold text-gray-800 mb-2">
-                ${billingCycle === 'yearly' ? '499' : '599'}/year
-              </div>
-              {billingCycle === 'yearly' && (
-                <div className="text-sm text-green-600 font-semibold mb-2">17% off</div>
-              )}
-              <div className="text-gray-600">
-                ${billingCycle === 'yearly' ? '41.58' : '49.92'}/month billed annually
-              </div>
-              {billingCycle === 'yearly' && (
-                <div className="text-sm text-gray-500 line-through">
-                  Was $599.88/year
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-4 mb-8">
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Everything in Pro</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Team Management (up to 10 users)</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Advanced Analytics & Insights</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Custom Branding</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">API Access</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Dedicated Account Manager</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Custom Integrations</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <span className="text-green-500 mt-1">✓</span>
-                <span className="text-gray-700">Enterprise Security</span>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => handleSubscribe('enterprise')}
-              className="w-full py-3 px-6 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-800 hover:to-black transition-all transform hover:scale-105"
-            >
-              Contact Sales
-            </button>
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="mt-20 max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">
-            Frequently Asked Questions
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Can I change plans anytime?
-              </h3>
-              <p className="text-gray-600">
-                Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Is my data secure?
-              </h3>
-              <p className="text-gray-600">
-                Absolutely. We use end-to-end encryption and never store your personal conversations.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Do you offer refunds?
-              </h3>
-              <p className="text-gray-600">
-                Yes, we offer a 30-day money-back guarantee for all paid plans.
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                How accurate is the AI?
-              </h3>
-              <p className="text-gray-600">
-                Our AI achieves 94% accuracy in detecting emotional authenticity through advanced analysis.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="mt-20 text-center">
-          <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-8 max-w-2xl mx-auto text-white">
-            <h2 className="text-3xl font-bold mb-4">
-              Ready to discover emotional truth?
-            </h2>
-            <p className="text-lg mb-6 opacity-90">
-              Join thousands of couples building stronger relationships with Kazini
+          {/* Title */}
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
+              Choose Your Plan
+            </h1>
+            <p className="text-xl text-white/80 max-w-2xl mx-auto">
+              Start free and upgrade as your relationship journey grows
             </p>
-            <button
-              onClick={() => handleSubscribe('pro')}
-              className="bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-            >
-              Start Your Journey Today
-            </button>
+          </div>
+
+          {/* Billing Toggle */}
+          <div className="flex justify-center mb-8">
+            <div className="bg-white/10 rounded-lg p-1 backdrop-blur-sm">
+              <button
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-6 py-2 rounded-md transition-all ${
+                  billingCycle === 'monthly'
+                    ? 'bg-white text-gray-900'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle('yearly')}
+                className={`px-6 py-2 rounded-md transition-all ${
+                  billingCycle === 'yearly'
+                    ? 'bg-white text-gray-900'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                Yearly
+                <Badge className="ml-2 bg-green-500 text-white text-xs">
+                  Save 17%
+                </Badge>
+              </button>
+            </div>
+          </div>
+
+          {/* Pricing Plans */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {displayPlans.map((plan, index) => (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="relative"
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold px-4 py-1">
+                      <Star className="w-3 h-3 mr-1" />
+                      Most Popular
+                    </Badge>
+                  </div>
+                )}
+                
+                <Card className={`h-full bg-white/10 backdrop-blur-sm border-white/20 text-white relative overflow-hidden ${
+                  plan.popular ? 'ring-2 ring-yellow-400/50' : ''
+                } ${currentPlan === plan.id.replace('_yearly', '').replace('_monthly', '') ? 'ring-2 ring-green-400/50' : ''}`}>
+                  
+                  {/* Plan Header */}
+                  <CardHeader className="text-center pb-4">
+                    <div className="flex items-center justify-center mb-2">
+                      {plan.id === 'free' && <Heart className="w-6 h-6 mr-2 text-gray-400" />}
+                      {plan.name.includes('Pro') && <Crown className="w-6 h-6 mr-2 text-yellow-400" />}
+                      {plan.name.includes('Enterprise') && <Shield className="w-6 h-6 mr-2 text-blue-400" />}
+                      <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                    </div>
+                    
+                    {/* Pricing */}
+                    <div className="mb-4">
+                      <div className="text-4xl font-bold mb-1">
+                        {plan.price}
+                        {plan.id !== 'free' && (
+                          <span className="text-lg font-normal text-white/70">
+                            /{plan.period}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {plan.discount && (
+                        <div className="text-sm text-green-400 font-semibold">
+                          {plan.discount}
+                        </div>
+                      )}
+                      
+                      {plan.monthlyPrice && plan.period === 'year' && (
+                        <div className="text-sm text-white/70">
+                          ${plan.monthlyPrice}/month billed annually
+                        </div>
+                      )}
+                      
+                      {plan.originalPrice && (
+                        <div className="text-sm text-white/50 line-through">
+                          Was {plan.originalPrice}/year
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+
+                  {/* Features */}
+                  <CardContent className="pt-0">
+                    <ul className="space-y-3 mb-8">
+                      {plan.features.map((feature, featureIndex) => (
+                        <li key={featureIndex} className="flex items-start">
+                          <Check className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm text-white/90">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* Action Button */}
+                    <Button
+                      onClick={() => handlePlanSelect(plan)}
+                      disabled={currentPlan === plan.id.replace('_yearly', '').replace('_monthly', '')}
+                      className={`w-full py-3 font-semibold transition-all ${plan.buttonClass} ${
+                        currentPlan === plan.id.replace('_yearly', '').replace('_monthly', '')
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:scale-105'
+                      }`}
+                    >
+                      {currentPlan === plan.id.replace('_yearly', '').replace('_monthly', '')
+                        ? 'Current Plan'
+                        : plan.buttonText
+                      }
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* FAQ or Additional Info */}
+          <div className="text-center mt-16">
+            <p className="text-white/70 text-sm">
+              All plans include 30-day money-back guarantee • Cancel anytime • Secure payments
+            </p>
           </div>
         </div>
       </div>
@@ -341,4 +243,3 @@ const Pricing = ({ onBack, onUpgrade }) => {
 };
 
 export default Pricing;
-
