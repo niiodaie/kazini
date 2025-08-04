@@ -108,6 +108,16 @@ const EmailLogin = ({ onSuccess, onError, loading, setLoading }) => {
       >
         {loading ? 'Signing in...' : 'Sign In'}
       </Button>
+      
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => onError && onError('SHOW_PASSWORD_RESET')}
+          className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          Forgot your password?
+        </button>
+      </div>
     </form>
   );
 };

@@ -92,13 +92,16 @@ const BillingModal = ({ isOpen, onClose, onUpgrade }) => {
     // Placeholder for Lemon Squeezy integration
     const checkoutUrl = `https://kazini.lemonsqueezy.com/checkout/${planType}-${billingCycle}${promoCode ? `?promo=${promoCode}` : ''}`;
     
-    // For now, show a modal or alert
-    alert(`Redirecting to Lemon Squeezy checkout for ${plan.name} (${billingCycle}): $${finalPrice.toFixed(2)}${promoDiscount > 0 ? ` (${promoDiscount}% off)` : ''}`);
+    // For now, open in new tab to simulate checkout
+    window.open(checkoutUrl, '_blank');
     
-    // In production:
-    // window.location.href = checkoutUrl;
-    
+    // Close the modal after initiating checkout
     onClose();
+    
+    // Optional: Call onUpgrade callback if provided
+    if (onUpgrade) {
+      onUpgrade(planType, billingCycle, finalPrice);
+    }
   };
 
   if (!isOpen) return null;

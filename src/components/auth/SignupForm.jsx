@@ -67,7 +67,13 @@ const SignupForm = ({ onSuccess, onError, loading, setLoading }) => {
       }
 
       if (data.user) {
-        onSuccess(data.user);
+        // Check if email confirmation is required
+        if (!data.user.email_confirmed_at) {
+          // Show email verification screen
+          onError('EMAIL_VERIFICATION_REQUIRED');
+        } else {
+          onSuccess(data.user, true); // isNewUser = true
+        }
       }
     } catch (error) {
       console.error('Signup error:', error);
