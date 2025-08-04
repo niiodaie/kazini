@@ -1,151 +1,168 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Alert, AlertDescription } from '../ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Mail, Phone, Link, Chrome, UserX } from 'lucide-react';
+
 import EmailLogin from './EmailLogin';
 import SignupForm from './SignupForm';
 import PhoneLogin from './PhoneLogin';
 import MagicLinkLogin from './MagicLinkLogin';
 import GoogleOAuthButton from './GoogleOAuthButton';
 import GuestLogin from './GuestLogin';
-import MagicLinkHandler from './MagicLinkHandler';
 
-const AuthTabs = ({ onBack, onAuthSuccess }) => {
-  const [activeTab, setActiveTab] = useState('login');
+const AuthTabs = ({ onAuthSuccess, onError, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showMagicLinkHandler, setShowMagicLinkHandler] = useState(false);
+  const [activeTab, setActiveTab] = useState('email');
+  const [isSignup, setIsSignup] = useState(false);
 
-  // Check if we have magic link tokens in URL
-  React.useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    if (accessToken) {
-      setShowMagicLinkHandler(true);
-    }
-  }, []);
-
-  const handleSuccess = (user) => {
-    setLoading(false);
+  const handleSuccess = (userData, isNewUser = false, showWelcome = false) => {
     setError('');
-    onAuthSuccess(user);
+    setLoading(false);
+    onAuthSuccess(userData, isNewUser, showWelcome);
   };
 
   const handleError = (errorMessage) => {
-    setLoading(false);
     setError(errorMessage);
+    setLoading(false);
+    onError(errorMessage);
   };
 
-  if (showMagicLinkHandler) {
-    return (
-      <div className="space-y-4">
-        <MagicLinkHandler
-          onSuccess={handleSuccess}
-          onError={handleError}
-        />
-      </div>
-    );
-  }
+  const switchToSignup = () => {
+    setIsSignup(true);
+    setError('');
+  };
+
+  const switchToLogin = () => {
+    setIsSignup(false);
+    setError('');
+  };
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <Alert className="border-red-200 bg-red-50">
-          <AlertDescription className="text-red-600">
-            {error}
-          </AlertDescription>
-        </Alert>
-      )}
+    <div className="w-full max-w-md mx-auto">
+      <Card className="shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-gray-800">
+            {isSignup ? 'Create Account' : 'Welcome Back'}
+          </CardTitle>
+          <CardDescription>
+            {isSignup 
+              ? 'Sign up to unlock all features and save your progress'
+              : 'Sign in to your account to continue'
+            }
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="email" className="flex items-center gap-1">
+                <Mail className="w-4 h-4" />
+                <span className="hidden sm:inline">Email</span>
+              </TabsTrigger>
+              <TabsTrigger value="phone" className="flex items-center gap-1">
+                <Phone className="w-4 h-4" />
+                <span className="hidden sm:inline">Phone</span>
+              </TabsTrigger>
+              <TabsTrigger value="magic" className="flex items-center gap-1">
+                <Link className="w-4 h-4" />
+                <span className="hidden sm:inline">Magic</span>
+              </TabsTrigger>
+              <TabsTrigger value="google" className="flex items-center gap-1">
+                <Chrome className="w-4 h-4" />
+                <span className="hidden sm:inline">Google</span>
+              </TabsTrigger>
+              <TabsTrigger value="guest" className="flex items-center gap-1">
+                <UserX className="w-4 h-4" />
+                <span className="hidden sm:inline">Guest</span>
+              </TabsTrigger>
+            </TabsList>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="login">Login</TabsTrigger>
-          <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          <TabsTrigger value="magic">Magic Link</TabsTrigger>
-          <TabsTrigger value="phone">Phone</TabsTrigger>
-        </TabsList>
+            <div className="mt-6">
+              <TabsContent value="email" className="space-y-4">
+                {isSignup ? (
+                  <SignupForm
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                    loading={loading}
+                    setLoading={setLoading}
+                  />
+                ) : (
+                  <EmailLogin
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                    loading={loading}
+                    setLoading={setLoading}
+                  />
+                )}
+                
+                <div className="text-center">
+                  <button
+                    onClick={isSignup ? switchToLogin : switchToSignup}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    {isSignup 
+                      ? 'Already have an account? Sign in'
+                      : "Don't have an account? Sign up"
+                    }
+                  </button>
+                </div>
+              </TabsContent>
 
-        <TabsContent value="login" className="space-y-4">
-          <EmailLogin
-            onSuccess={handleSuccess}
-            onError={handleError}
-            loading={loading}
-            setLoading={setLoading}
-          />
-        </TabsContent>
+              <TabsContent value="phone">
+                <PhoneLogin
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                  loading={loading}
+                  setLoading={setLoading}
+                />
+              </TabsContent>
 
-        <TabsContent value="signup" className="space-y-4">
-          <SignupForm
-            onSuccess={handleSuccess}
-            onError={handleError}
-            loading={loading}
-            setLoading={setLoading}
-          />
-        </TabsContent>
+              <TabsContent value="magic">
+                <MagicLinkLogin
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                  loading={loading}
+                  setLoading={setLoading}
+                />
+              </TabsContent>
 
-        <TabsContent value="magic" className="space-y-4">
-          <MagicLinkLogin
-            onSuccess={handleSuccess}
-            onError={handleError}
-            loading={loading}
-            setLoading={setLoading}
-          />
-        </TabsContent>
+              <TabsContent value="google">
+                <GoogleOAuthButton
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                  loading={loading}
+                  setLoading={setLoading}
+                />
+              </TabsContent>
 
-        <TabsContent value="phone" className="space-y-4">
-          <PhoneLogin
-            onSuccess={handleSuccess}
-            onError={handleError}
-            loading={loading}
-            setLoading={setLoading}
-          />
-        </TabsContent>
-      </Tabs>
+              <TabsContent value="guest">
+                <GuestLogin
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                  loading={loading}
+                  setLoading={setLoading}
+                />
+              </TabsContent>
+            </div>
+          </Tabs>
 
-      {/* Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300"></div>
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white text-gray-500">or</span>
-        </div>
-      </div>
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
-      {/* Google OAuth */}
-      <GoogleOAuthButton
-        onSuccess={handleSuccess}
-        onError={handleError}
-        loading={loading}
-        setLoading={setLoading}
-      />
-
-      {/* Guest Login Section */}
-      <div className="border-t border-gray-200 pt-6">
-        <div className="mb-4">
-          <div className="flex items-center mb-2">
-            <span className="text-lg mr-2">ℹ️</span>
-            <span className="font-semibold text-gray-800">Guest Access Features:</span>
+          <div className="mt-6 text-center">
+            <button
+              onClick={onBack}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              ← Back to Home
+            </button>
           </div>
-          <ul className="text-sm text-gray-600 space-y-1 ml-6">
-            <li>• Try basic truth detection features</li>
-            <li>• Limited to free plan features</li>
-            <li>• Session expires after 24 hours</li>
-            <li>• Create an account to save your progress</li>
-          </ul>
-        </div>
-        
-        <GuestLogin
-          onSuccess={handleSuccess}
-          onError={handleError}
-          loading={loading}
-          setLoading={setLoading}
-        />
-        
-        <p className="text-center text-sm text-gray-500 mt-4">
-          <span className="mr-2">👤</span>
-          No account required • Try Kazini risk-free
-        </p>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
