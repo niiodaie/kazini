@@ -1,61 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext, createContext } from 'react';
 import { supabase } from '../supabase';
+import { upsertUserProfile } from '../utils/authUtils';
+import { getPostLoginRoute } from '../utils/authHandler';
 
-const useAuthSession = () => {
+// Create Auth Context
+const AuthContext = createContext({});
+
+// Auth Provider Component
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
-    let mounted = true;
-
     // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Session error:', error);
-          setError(error.message);
-        } else if (session && mounted) {
-          setSession(session);
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            displayName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-            plan: session.user.user_metadata?.plan || 'free',
-            authMethod: session.user.app_metadata?.provider || 'email',
-            emailConfirmed: session.user.email_confirmed_at ? true : false,
-            session: session
-          });
-        } else {
-          // Check for guest session
-          const guestSession = localStorage.getItem('kazini_guest_session');
-          if (guestSession && mounted) {
-            try {
-              const guestData = JSON.parse(guestSession);
-              // Check if guest session is still valid (24 hours)
-              if (guestData.session.expires_at > Date.now()) {
-                setUser(guestData);
-                setSession(guestData.session);
-              } else {
-                // Remove expired guest session
-                localStorage.removeItem('kazini_guest_session');
-              }
-            } catch (err) {
-              console.error('Invalid guest session data:', err);
-              localStorage.removeItem('kazini_guest_session');
-            }
-          }
+          console.error('Error getting initial session:', error);
+        } else if (session) {
+          await handleSessionChange(session);
         }
-      } catch (err) {
-        console.error('Error getting initial session:', err);
-        setError(err.message);
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
@@ -64,124 +35,143 @@ const useAuthSession = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
-
-        console.log('Auth state changed:', event, session?.user?.id);
-
-        if (event === 'SIGNED_IN' && session) {
-          setSession(session);
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            displayName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-            plan: session.user.user_metadata?.plan || 'free',
-            authMethod: session.user.app_metadata?.provider || 'email',
-            emailConfirmed: session.user.email_confirmed_at ? true : false,
-            session: session
-          });
-          // Clear any guest session when user signs in
-          localStorage.removeItem('kazini_guest_session');
-          setError(null);
-        } else if (event === 'SIGNED_OUT') {
-          setSession(null);
+        console.log('Auth state changed:', event, session);
+        
+        if (session) {
+          await handleSessionChange(session);
+        } else {
           setUser(null);
-          // Clear any guest session on sign out
-          localStorage.removeItem('kazini_guest_session');
-          setError(null);
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          setSession(session);
-          // Update user data with refreshed session
-          setUser(prev => prev ? { ...prev, session } : null);
+          setSession(null);
+          localStorage.removeItem('kazini_user');
         }
+        
+        setLoading(false);
       }
     );
 
     return () => {
-      mounted = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
+
+  const handleSessionChange = async (session) => {
+    try {
+      setSession(session);
+      
+      if (session.user) {
+        // Create/update user profile
+        const profileData = await upsertUserProfile(session.user);
+        
+        // Create user object for local state
+        const userData = {
+          id: session.user.id,
+          email: session.user.email,
+          phone: session.user.phone,
+          displayName: profileData.display_name || 
+                      session.user.user_metadata?.full_name || 
+                      session.user.email?.split('@')[0] || 
+                      'User',
+          plan: profileData.plan || 'free',
+          role: profileData.role || 'user',
+          isInvitedPartner: profileData.is_invited_partner || false,
+          partnerSessionId: profileData.partner_session_id || null,
+          isCoupleModeActive: profileData.is_couple_mode_active || false,
+          location: profileData.location || { country: '', city: '' },
+          authMethod: session.user.app_metadata?.provider || 'email',
+          supabaseUser: session.user
+        };
+
+        setUser(userData);
+        localStorage.setItem('kazini_user', JSON.stringify(userData));
+      }
+    } catch (error) {
+      console.error('Error handling session change:', error);
+    }
+  };
 
   const signOut = async () => {
     try {
       setLoading(true);
-      
-      // Clear guest session
-      localStorage.removeItem('kazini_guest_session');
-      
-      // Sign out from Supabase (if not a guest)
-      if (user && !user.isGuest) {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.error('Sign out error:', error);
-          setError(error.message);
-          return { error };
-        }
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
       }
-      
-      // Clear local state
-      setUser(null);
-      setSession(null);
-      setError(null);
-      
-      return { error: null };
-    } catch (err) {
-      console.error('Unexpected sign out error:', err);
-      setError(err.message);
-      return { error: err };
+    } catch (error) {
+      console.error('Error in signOut:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const refreshSession = async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error('Refresh session error:', error);
-        setError(error.message);
-        return { error };
-      }
-      
-      if (session) {
-        setSession(session);
-        setUser(prev => prev ? { ...prev, session } : null);
-      }
-      
-      return { session, error: null };
-    } catch (err) {
-      console.error('Unexpected refresh error:', err);
-      setError(err.message);
-      return { error: err };
+  const refreshUserProfile = async () => {
+    if (session?.user) {
+      await handleSessionChange(session);
     }
   };
 
-  const isAuthenticated = () => {
-    return !!(user && (session || user.isGuest));
-  };
-
-  const isGuest = () => {
-    return !!(user && user.isGuest);
-  };
-
-  const hasValidSession = () => {
-    if (user && user.isGuest) {
-      return user.session.expires_at > Date.now();
-    }
-    return !!(session && session.access_token);
-  };
-
-  return {
+  const value = {
     user,
     session,
     loading,
-    error,
     signOut,
-    refreshSession,
-    isAuthenticated,
-    isGuest,
-    hasValidSession
+    refreshUserProfile,
+    isAuthenticated: !!user?.id,
+    isGuest: user?.role === 'guest',
+    isInvitedPartner: user?.isInvitedPartner === true,
+    getPostLoginRoute: () => getPostLoginRoute(user)
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Hook to use auth context
+export const useAuthSession = () => {
+  const context = useContext(AuthContext);
+  
+  if (context === undefined) {
+    throw new Error('useAuthSession must be used within an AuthProvider');
+  }
+  
+  return context;
+};
+
+// Higher-order component for route protection
+export const withAuth = (Component, options = {}) => {
+  return function AuthenticatedComponent(props) {
+    const { user, loading } = useAuthSession();
+    const { requireAuth = true, allowedRoles = [], redirectTo = '/auth' } = options;
+
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+        </div>
+      );
+    }
+
+    if (requireAuth && !user) {
+      // Redirect to auth or show auth component
+      window.location.href = redirectTo;
+      return null;
+    }
+
+    if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
+      // User doesn't have required role
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Access Denied</h2>
+            <p className="text-gray-600">You don't have permission to access this page.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return <Component {...props} />;
   };
 };
 

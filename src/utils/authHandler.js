@@ -41,7 +41,33 @@ export const handleAuthTokens = async () => {
 };
 
 /**
- * Setup auth state listener
+ * Post-login routing logic based on user profile
+ * @param {Object} user - User object with profile data
+ * @returns {string} - Route to redirect to
+ */
+export const getPostLoginRoute = (user) => {
+  // If no session, redirect to auth
+  if (!user || !user.id) {
+    return '/auth';
+  }
+
+  // Guest users go to truth-test
+  if (user.role === 'guest') {
+    return '/truth-test';
+  }
+
+  // Invited partners go to couple session
+  if (user.isInvitedPartner === true && user.partnerSessionId) {
+    return `/couple-session/${user.partnerSessionId}`;
+  }
+
+  // All other authenticated users go to dashboard
+  // (Free, Pro, Enterprise users)
+  return '/dashboard';
+};
+
+/**
+ * Setup auth state listener with new routing logic
  * This function sets up the Supabase auth state change listener
  */
 export const setupAuthListener = (setUser) => {
@@ -64,6 +90,10 @@ export const setupAuthListener = (setUser) => {
                         session.user.email?.split('@')[0] || 
                         'User',
             plan: profileData.plan || 'free',
+            role: profileData.role || 'user',
+            isInvitedPartner: profileData.is_invited_partner || false,
+            partnerSessionId: profileData.partner_session_id || null,
+            isCoupleModeActive: profileData.is_couple_mode_active || false,
             location: profileData.location || { country: '', city: '' },
             authMethod: session.user.app_metadata?.provider || 'email',
             supabaseUser: session.user
@@ -72,9 +102,10 @@ export const setupAuthListener = (setUser) => {
           setUser(userData);
           localStorage.setItem('kazini_user', JSON.stringify(userData));
           
-          // Redirect to truth-test if coming from auth (instead of dashboard)
+          // Return routing information for the app to handle
           if (event === 'SIGNED_IN') {
-            return { redirect: '/truth-test', user: userData };
+            const redirectRoute = getPostLoginRoute(userData);
+            return { redirect: redirectRoute, user: userData };
           }
         } catch (error) {
           console.error('Error handling auth state change:', error);
@@ -95,7 +126,7 @@ export const setupAuthListener = (setUser) => {
 };
 
 /**
- * Initialize authentication
+ * Initialize authentication with new routing logic
  * This function handles initial auth setup and token processing
  */
 export const initializeAuth = async (setUser) => {
@@ -136,6 +167,10 @@ export const initializeAuth = async (setUser) => {
                     session.user.email?.split('@')[0] || 
                     'User',
         plan: profileData.plan || 'free',
+        role: profileData.role || 'user',
+        isInvitedPartner: profileData.is_invited_partner || false,
+        partnerSessionId: profileData.partner_session_id || null,
+        isCoupleModeActive: profileData.is_couple_mode_active || false,
         location: profileData.location || { country: '', city: '' },
         authMethod: session.user.app_metadata?.provider || 'email',
         supabaseUser: session.user
@@ -185,7 +220,7 @@ export const isAuthenticated = (user) => {
  */
 export const getAuthRedirectUrl = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get('next') || '/dashboard';
+  return urlParams.get('next') || getPostLoginRoute();
 };
 
 /**
@@ -195,5 +230,60 @@ export const setAuthRedirectUrl = (url) => {
   const currentUrl = new URL(window.location);
   currentUrl.searchParams.set('next', url);
   window.history.replaceState(null, null, currentUrl.toString());
+};
+
+/**
+ * Handle post-authentication success with new routing logic
+ * @param {Object} userData - User data from authentication
+ * @param {Function} setCurrentView - Function to set current view
+ * @param {boolean} isNewUser - Whether this is a new user signup
+ */
+export const handleAuthSuccess = (userData, setCurrentView, isNewUser = false) => {
+  // Determine the correct route based on user profile
+  const redirectRoute = getPostLoginRoute(userData);
+  
+  // Convert route to view name (remove leading slash and convert to view format)
+  let viewName = redirectRoute.replace('/', '');
+  
+  // Handle special route mappings
+  if (viewName === 'truth-test') {
+    viewName = 'truth-test';
+  } else if (viewName === 'dashboard') {
+    viewName = 'dashboard';
+  } else if (viewName.startsWith('couple-session/')) {
+    // For couple session routes, we'll need to handle this specially
+    viewName = 'couple-session';
+  } else if (viewName === 'auth') {
+    viewName = 'auth';
+  } else {
+    // Default fallback
+    viewName = 'dashboard';
+  }
+  
+  setCurrentView(viewName);
+};
+
+/**
+ * Create guest user session
+ * @returns {Object} - Guest user data
+ */
+export const createGuestUser = () => {
+  const guestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const guestUser = {
+    id: guestId,
+    email: null,
+    phone: null,
+    displayName: 'Guest User',
+    plan: 'free',
+    role: 'guest',
+    isInvitedPartner: false,
+    partnerSessionId: null,
+    isCoupleModeActive: false,
+    location: { country: '', city: '' },
+    authMethod: 'guest',
+    supabaseUser: null
+  };
+  
+  return guestUser;
 };
 

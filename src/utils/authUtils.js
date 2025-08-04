@@ -138,6 +138,32 @@ export const verifyPhoneOTP = async (phone, token) => {
 };
 
 /**
+ * Handle magic link authentication
+ * @param {string} email - User email
+ * @returns {Promise<void>}
+ */
+export const handleMagicLinkAuth = async (email) => {
+  try {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      console.error('Magic link auth failed:', error.message);
+      throw new Error(`Magic link authentication failed: ${error.message}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Magic link auth error:', error);
+    throw error;
+  }
+};
+
+/**
  * Format phone number to international format
  * @param {string} phone - Phone number
  * @returns {string} - Formatted phone number
@@ -248,7 +274,7 @@ export const signOut = async () => {
 };
 
 /**
- * Upsert user profile in Supabase
+ * Upsert user profile in Supabase with new structure
  * @param {Object} user - Supabase user object
  * @returns {Promise<Object>}
  */
@@ -262,7 +288,11 @@ export const upsertUserProfile = async (user) => {
                    user.user_metadata?.full_name || 
                    user.email?.split('@')[0] || 
                    'User',
-      plan: 'free', // Default plan
+      role: 'user', // Default role for new users
+      plan: 'free', // Default plan for new users
+      is_invited_partner: false, // Default to false
+      partner_session_id: null, // Default to null
+      is_couple_mode_active: false, // Default to false
       location: user.user_metadata?.location || { country: '', city: '' },
       auth_method: user.app_metadata?.provider || 'email',
       created_at: user.created_at,
@@ -292,10 +322,69 @@ export const upsertUserProfile = async (user) => {
       id: user.id,
       email: user.email,
       display_name: user.email?.split('@')[0] || 'User',
+      role: 'user',
       plan: 'free',
+      is_invited_partner: false,
+      partner_session_id: null,
+      is_couple_mode_active: false,
       location: { country: '', city: '' },
       auth_method: 'email',
     };
+  }
+};
+
+/**
+ * Update user profile
+ * @param {string} userId - User ID
+ * @param {Object} updates - Profile updates
+ * @returns {Promise<Object>}
+ */
+export const updateUserProfile = async (userId, updates) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Profile update failed:', error.message);
+      throw new Error(`Profile update failed: ${error.message}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Profile update error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get user profile by ID
+ * @param {string} userId - User ID
+ * @returns {Promise<Object|null>}
+ */
+export const getUserProfile = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Get profile failed:', error.message);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return null;
   }
 };
 
