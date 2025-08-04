@@ -32,6 +32,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
 import MagicLinkHandler from './components/auth/MagicLinkHandler';
 import EnhancedHero from './components/EnhancedHero';
+import LanguageSelector from './components/LanguageSelector';
 
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
 
@@ -337,6 +338,7 @@ function App() {
             <img src={kaziniLogo} alt="Kazini" className="h-8" />
           </motion.div>
           <div className="flex items-center space-x-4">
+            <LanguageSelector />
             <motion.button
               whileHover={{ scale: 1.05 }}
               onClick={() => setCurrentView(ROUTES.PRICING)}
