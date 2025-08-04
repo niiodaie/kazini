@@ -3,261 +3,122 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Alert, AlertDescription } from '../ui/alert';
-import { Mail, Send, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Mail, CheckCircle } from 'lucide-react';
 import { supabase } from '../../supabase';
 
-const MagicLinkLogin = ({ onSuccess, onError, isLoading, setIsLoading }) => {
-  const [formData, setFormData] = useState({
-    email: ''
-  });
-  const [errors, setErrors] = useState({});
-  const [successMessage, setSuccessMessage] = useState('');
-  const [linkSent, setLinkSent] = useState(false);
+const MagicLinkLogin = ({ onSuccess, onError, loading, setLoading }) => {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [localError, setLocalError] = useState('');
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear field-specific error
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
-    
-    // Clear success message when user starts typing
-    if (successMessage) {
-      setSuccessMessage('');
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setEmail(e.target.value);
+    setLocalError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsLoading(true);
-    setErrors({});
-    
+    setLoading(true);
+    setLocalError('');
+
     try {
-      // Real Supabase magic link
       const { error } = await supabase.auth.signInWithOtp({
-        email: formData.email,
+        email: email,
         options: {
-          shouldCreateUser: true,
-          data: {
-            plan: 'free'
-          }
+          emailRedirectTo: window.location.origin
         }
       });
 
       if (error) {
-        let errorMessage = 'Failed to send magic link. Please try again.';
-        
-        if (error.message.includes('Invalid email')) {
-          errorMessage = 'Please enter a valid email address.';
-        } else if (error.message.includes('Too many requests')) {
-          errorMessage = 'Too many requests. Please wait a moment before trying again.';
-        } else if (error.message.includes('Email not configured')) {
-          errorMessage = 'Email service is not available. Please try another login method.';
-        } else {
-          errorMessage = error.message;
-        }
-        
-        setErrors({ general: errorMessage });
-        if (onError) onError(errorMessage);
-        setIsLoading(false);
-        return;
+        throw error;
       }
 
-      setSuccessMessage(`Magic link sent to ${formData.email}! Check your inbox and click the link to sign in.`);
-      setLinkSent(true);
-      setIsLoading(false);
-      
-      if (onSuccess) {
-        onSuccess({
-          message: 'Magic link sent successfully!',
-          email: formData.email,
-          needsEmailCheck: true
-        });
-      }
-    } catch (err) {
-      console.error('Magic link error:', err);
-      const errorMessage = 'An unexpected error occurred. Please try again.';
-      setErrors({ general: errorMessage });
-      if (onError) onError(errorMessage);
-      setIsLoading(false);
+      setSent(true);
+    } catch (error) {
+      console.error('Magic link error:', error);
+      setLocalError(error.message || 'Failed to send magic link. Please try again.');
+      onError(error.message || 'Failed to send magic link. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleResendLink = async () => {
-    if (!formData.email) return;
-    
-    setIsLoading(true);
-    setErrors({});
-    setSuccessMessage('');
-    
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: formData.email,
-        options: {
-          shouldCreateUser: true,
-          data: {
-            plan: 'free'
-          }
-        }
-      });
-
-      if (error) {
-        setErrors({ general: 'Failed to resend magic link. Please try again.' });
-        setIsLoading(false);
-        return;
-      }
-
-      setSuccessMessage('Magic link resent! Check your inbox.');
-      setIsLoading(false);
-    } catch (err) {
-      console.error('Resend magic link error:', err);
-      setErrors({ general: 'Failed to resend magic link. Please try again.' });
-      setIsLoading(false);
-    }
+  const handleResend = () => {
+    setSent(false);
+    setEmail('');
   };
 
-  return (
-    <div className="space-y-4">
-      {/* Success Message */}
-      {successMessage && (
+  if (sent) {
+    return (
+      <div className="space-y-4">
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            {successMessage}
+          <AlertDescription className="text-green-600">
+            Magic link sent! Check your email and click the link to sign in.
           </AlertDescription>
         </Alert>
-      )}
-
-      {/* General Error */}
-      {errors.general && (
-        <Alert className="border-red-200 bg-red-50">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">
-            {errors.general}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Info Message */}
-      {!linkSent && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
-            We'll send you a secure login link via email. No password required!
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {linkSent && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
-            <div className="space-y-2">
-              <p>Check your email inbox and click the magic link to sign in.</p>
-              <p className="text-sm">Don't see the email? Check your spam folder or click resend below.</p>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Email Field */}
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium">
-            Email Address
-          </Label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              placeholder="Enter your email"
-              className="pl-10"
-              disabled={isLoading}
-            />
+        
+        <div className="text-center space-y-4">
+          <div className="p-6 bg-gray-50 rounded-lg">
+            <Mail className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-sm text-gray-600">
+              We sent a magic link to <strong>{email}</strong>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Click the link in your email to sign in instantly
+            </p>
           </div>
-          {errors.email && (
-            <p className="text-sm text-red-600">{errors.email}</p>
-          )}
-        </div>
-
-        {/* Submit Button */}
-        <Button
-          type="submit"
-          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Sending Magic Link...</span>
-            </div>
-          ) : (
-            <div className="flex items-center space-x-2">
-              <Send className="w-4 h-4" />
-              <span>Send Magic Link</span>
-            </div>
-          )}
-        </Button>
-
-        {/* Resend Button */}
-        {linkSent && (
+          
           <Button
             type="button"
             variant="outline"
+            onClick={handleResend}
             className="w-full"
-            onClick={handleResendLink}
-            disabled={isLoading}
           >
-            {isLoading ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
-                <span>Resending...</span>
-              </div>
-            ) : (
-              'Resend Magic Link'
-            )}
+            Send to Different Email
           </Button>
-        )}
-      </form>
-
-      {/* Additional Help */}
-      {linkSent && (
-        <div className="text-center text-sm text-gray-600">
-          <p>Having trouble? Make sure to check your spam folder.</p>
-          <p>The magic link will expire in 1 hour for security.</p>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {localError && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertDescription className="text-red-600">
+            {localError}
+          </AlertDescription>
+        </Alert>
       )}
-    </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="magic-email">Email Address</Label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            id="magic-email"
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={handleInputChange}
+            className="pl-10"
+            required
+          />
+        </div>
+        <p className="text-xs text-gray-500">
+          We'll send you a magic link for instant sign-in
+        </p>
+      </div>
+
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={loading || !email}
+      >
+        {loading ? 'Sending...' : 'Send Magic Link'}
+      </Button>
+    </form>
   );
 };
 
