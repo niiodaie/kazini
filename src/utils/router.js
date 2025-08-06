@@ -21,6 +21,7 @@ export const ROUTES = {
   HISTORY: 'history',
   TRUST_INDEX: 'trust-index',
   LONG_DISTANCE: 'long-distance'
+  MAGIC_LINK_HANDLER: 'auth/callback'
 };
 
 // Define which routes require authentication
