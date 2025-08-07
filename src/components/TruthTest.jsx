@@ -398,18 +398,16 @@ const TruthTest = ({ onBack, user }) => {
                         onClick={onBack}
                         className="border border-gray-300 text-gray-700 px-6 py-3 rounded-full font-semibold hover:bg-gray-50 transition-all duration-300"
                       >
-                        Back to Home
-                      </button>
-                    </div>
-                  </div>
-                )}
-           </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-    </div> {/* <-- Add this line */}
-  );
+                    Back to Home
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    )}
+  </AnimatePresence>
+</div> {/* <-- This closes the top-level wrapper div */}
+);
 };
 
 export default TruthTest;
