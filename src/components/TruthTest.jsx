@@ -408,7 +408,11 @@ const TruthTest = ({ onBack, user }) => {
     </AnimatePresence>
   );
 };
+    </div> {/* <-- Add this line */}
+  );
+};
 
 export default TruthTest;
+
 
 
