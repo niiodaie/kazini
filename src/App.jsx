@@ -32,6 +32,7 @@ import ComingSoonModal from './components/ComingSoonModal';
 import LiveDetection from './components/LiveDetection';
 import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
+import PlanSelectorModal from './components/PlanSelectorModal';
 import MagicLinkHandler from './components/auth/MagicLinkHandler';
 import AuthCallback from './components/auth/AuthCallback';
 import EnhancedHero from './components/EnhancedHero';
@@ -466,6 +467,14 @@ function App() {
           onUpgrade={handleUpgrade}
         />
       )}
+
+      <PlanSelectorModal
+        onClose={() => {}}
+        onPlanSelected={(plan) => {
+          console.log('Plan selected:', plan);
+          // Refresh user data or update state as needed
+        }}
+      />
     </div>
   );
 }
