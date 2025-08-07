@@ -31,6 +31,7 @@ import LiveDetection from './components/LiveDetection';
 import WelcomeScreen from './components/WelcomeScreen';
 import UpgradePrompt from './components/UpgradePrompt';
 import MagicLinkHandler from './components/auth/MagicLinkHandler';
+import AuthCallback from './components/auth/AuthCallback';
 import EnhancedHero from './components/EnhancedHero';
 import LanguageSelector from './components/LanguageSelector';
 
@@ -52,6 +53,13 @@ function App() {
   // Handle URL hash tokens and session setup
   useEffect(() => {
     setIsLoaded(true);
+    
+    // Check if we're on the auth callback route
+    const currentPath = window.location.pathname;
+    if (currentPath === '/auth/callback' || window.location.hash.includes('access_token')) {
+      setCurrentView(ROUTES.AUTH_CALLBACK);
+      return;
+    }
     
     // Initialize authentication
     initializeAuth(setUser);
@@ -172,6 +180,11 @@ function App() {
     switch (currentView) {
       case ROUTES.AUTH:
         return <Auth onBack={() => setCurrentView(ROUTES.HOME)} onAuthSuccess={handleAuthSuccess} />;
+      case ROUTES.AUTH_CALLBACK:
+        return <AuthCallback onSuccess={handleAuthSuccess} onError={(error) => {
+          console.error('Auth callback error:', error);
+          setCurrentView(ROUTES.AUTH);
+        }} />;
       case ROUTES.TRUTH_TEST:
         return <TruthTest onBack={() => setCurrentView(ROUTES.HOME)} user={user} />;
       case ROUTES.COUPLE:

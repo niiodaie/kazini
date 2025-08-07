@@ -6,6 +6,7 @@
 export const ROUTES = {
   HOME: 'home',
   AUTH: 'auth',
+  AUTH_CALLBACK: 'auth/callback',
   DASHBOARD: 'dashboard',
   TRUTH_TEST: 'truth-test',
   COUPLE: 'couple',
@@ -21,7 +22,6 @@ export const ROUTES = {
   HISTORY: 'history',
   TRUST_INDEX: 'trust-index',
   LONG_DISTANCE: 'long-distance'
-  MAGIC_LINK_HANDLER: 'auth/callback'
 };
 
 // Define which routes require authentication
@@ -199,6 +199,7 @@ export const getRouteTitle = (route) => {
   const titles = {
     [ROUTES.HOME]: 'Home',
     [ROUTES.AUTH]: 'Sign In',
+    [ROUTES.AUTH_CALLBACK]: 'Authenticating...',
     [ROUTES.DASHBOARD]: 'Dashboard',
     [ROUTES.TRUTH_TEST]: 'Truth Test',
     [ROUTES.COUPLE]: 'Couple Mode',
