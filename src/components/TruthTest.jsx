@@ -403,14 +403,12 @@ const TruthTest = ({ onBack, user }) => {
                     </div>
                   </div>
                 )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-});
-);
+           </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 export default TruthTest;
 
 
