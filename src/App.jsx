@@ -13,6 +13,7 @@ import kaziniLogo from './assets/kazinilogo.png';
 import kaziniIcon from './assets/kazini-appicon.png';
 
 import TruthTest from './components/TruthTest';
+import TruthTestAsync from './components/TruthTestAsync';
 import CoupleMode from './components/CoupleMode';
 import CoupleModeSelector from './components/CoupleModeSelector';
 import LiveSessionSetup from './components/LiveSessionSetup';
@@ -164,6 +165,10 @@ function App() {
     guardRoute(ROUTES.TRUTH_TEST, user, checkPlanAccess, setCurrentView, setShowUpgradePrompt, setUpgradeFeature);
   };
 
+  const handleTruthTestAsync = () => {
+    guardRoute(ROUTES.TRUTH_TEST_ASYNC, user, checkPlanAccess, setCurrentView, setShowUpgradePrompt, setUpgradeFeature);
+  };
+
   const handleGoLive = () => {
     guardRoute(ROUTES.LIVE_DETECTION, user, checkPlanAccess, setCurrentView, setShowUpgradePrompt, setUpgradeFeature);
   };
@@ -196,6 +201,8 @@ function App() {
         }} />;
       case ROUTES.TRUTH_TEST:
         return <TruthTest onBack={() => setCurrentView(ROUTES.HOME)} user={user} />;
+      case ROUTES.TRUTH_TEST_ASYNC:
+        return <TruthTestAsync onBack={() => setCurrentView(ROUTES.HOME)} user={user} />;
       case ROUTES.COUPLE:
         return <CoupleModeSelector onBack={() => setCurrentView(ROUTES.HOME)} />;
       case ROUTES.COUPLE_LIVE:
@@ -399,6 +406,7 @@ function App() {
         {/* Enhanced Hero Content */}
         <EnhancedHero
           handleTruthTest={handleTruthTest}
+          handleTruthTestAsync={handleTruthTestAsync}
           handleGoLive={handleGoLive}
           handleCoupleMode={handleCoupleMode}
           handleAIScheduler={handleAIScheduler}

@@ -9,6 +9,7 @@ export const ROUTES = {
   AUTH_CALLBACK: 'auth/callback',
   DASHBOARD: 'dashboard',
   TRUTH_TEST: 'truth-test',
+  TRUTH_TEST_ASYNC: 'truth-test-async',
   COUPLE: 'couple',
   COUPLE_LIVE: 'couple/live',
   COUPLE_ASYNC: 'couple/async',
