@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import callTruthAnalyzer from '../utils/callTruthAnalyzer';
+import { callTruthAnalyzer } from '../utils/callTruthAnalyzer';
 import { ArrowLeft, Send, Mic, MicOff, CheckCircle, AlertTriangle, XCircle, Loader2, User, Save } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -14,86 +14,31 @@ const TruthTest = ({ onBack, user }) => {
   const [step, setStep] = useState(1); // 1: question, 2: answer, 3: result
   const [isRecording, setIsRecording] = useState(false);
 
-  // Mock AI analysis function
+  // AI analysis function using the Truth Analyzer API
   const analyzeResponse = async (question, answer) => {
-  setIsLoading(true);
-  try {
-    const input = `${answer}`;
-    const response = await callTruthAnalyzer(input);
+    setIsLoading(true);
+    try {
+      const input = `${answer}`;
+      const response = await callTruthAnalyzer(input);
 
-    // structure expected from Supabase Function
-    setResult({
-      verdict: response?.verdict || 'Unknown',
-      score: response?.score || 0,
-      reason: response?.reason || '',
-    });
-    setStep(3); // go to result step
-  } catch (error) {
-    console.error('Truth Analyzer API failed:', error);
-    setResult({
-      verdict: 'Error',
-      score: 0,
-      reason: 'Unable to process input.',
-    });
-    setStep(3);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-    
-    // Mock AI analysis logic
-    const confidence = Math.floor(Math.random() * 40) + 60; // 60-100
-    const truthValue = confidence > 75;
-    const warningValue = confidence >= 65 && confidence <= 75;
-    
-    const responses = {
-      truth: [
-        "Direct response with no hedging.",
-        "Consistent emotional tone throughout.",
-        "No verbal hesitation patterns detected.",
-        "Response aligns with typical truthful indicators."
-      ],
-      warning: [
-        "Some hesitation detected in response.",
-        "Slight inconsistency in emotional tone.",
-        "Response shows minor evasive patterns.",
-        "Mixed signals in authenticity markers."
-      ],
-      false: [
-        "Significant hesitation and hedging detected.",
-        "Inconsistent emotional patterns found.",
-        "Multiple evasive language indicators.",
-        "Response shows deceptive characteristics."
-      ]
-    };
-    
-    let resultType = 'false';
-    let icon = '❌';
-    let resultText = 'DECEPTION DETECTED';
-    
-    if (truthValue) {
-      resultType = 'truth';
-      icon = '✅';
-      resultText = 'TRUTH';
-    } else if (warningValue) {
-      resultType = 'warning';
-      icon = '⚠️';
-      resultText = 'UNCERTAIN';
+      // structure expected from Supabase Function
+      setResult({
+        verdict: response?.verdict || 'Unknown',
+        score: response?.score || 0,
+        reason: response?.reason || '',
+      });
+      setStep(3); // go to result step
+    } catch (error) {
+      console.error('Truth Analyzer API failed:', error);
+      setResult({
+        verdict: 'Error',
+        score: 0,
+        reason: 'Unable to process input.',
+      });
+      setStep(3);
+    } finally {
+      setIsLoading(false);
     }
-    
-    const explanation = responses[resultType][Math.floor(Math.random() * responses[resultType].length)];
-    const trustDelta = truthValue ? Math.floor(Math.random() * 15) + 5 : -(Math.floor(Math.random() * 15) + 5);
-    
-    setResult({
-      result: `${icon} ${resultText}`,
-      confidence,
-      explanation,
-      trustDelta,
-      type: resultType
-    });
-    
-    setIsLoading(false);
   };
 
   const handleSubmitQuestion = () => {
@@ -121,29 +66,37 @@ const TruthTest = ({ onBack, user }) => {
     // In a real app, this would start/stop voice recording
   };
 
-  const getResultColor = (type) => {
-    switch (type) {
+  const getResultColor = (verdict) => {
+    switch (verdict?.toLowerCase()) {
       case 'truth':
+      case 'truthful':
         return 'text-green-600 bg-green-50 border-green-200';
-      case 'warning':
+      case 'uncertain':
+      case 'unclear':
         return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'deception':
       case 'false':
+      case 'lie':
         return 'text-red-600 bg-red-50 border-red-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
 
-  const getResultIcon = (type) => {
-    switch (type) {
+  const getResultIcon = (verdict) => {
+    switch (verdict?.toLowerCase()) {
       case 'truth':
+      case 'truthful':
         return <CheckCircle className="w-16 h-16 text-green-600" />;
-      case 'warning':
+      case 'uncertain':
+      case 'unclear':
         return <AlertTriangle className="w-16 h-16 text-yellow-600" />;
+      case 'deception':
       case 'false':
+      case 'lie':
         return <XCircle className="w-16 h-16 text-red-600" />;
       default:
-        return null;
+        return <AlertTriangle className="w-16 h-16 text-gray-600" />;
     }
   };
 
@@ -333,12 +286,12 @@ const TruthTest = ({ onBack, user }) => {
 
                 {/* Results */}
                 {result && !isLoading && (
-                  <div className={`bg-white rounded-2xl shadow-lg p-8 border-2 ${getResultColor(result.type)}`}>
+                  <div className={`bg-white rounded-2xl shadow-lg p-8 border-2 ${getResultColor(result.verdict)}`}>
                     <div className="text-center mb-8">
-                      {getResultIcon(result.type)}
-                      <h3 className="text-3xl font-bold mt-4 mb-2">{result.result}</h3>
+                      {getResultIcon(result.verdict)}
+                      <h3 className="text-3xl font-bold mt-4 mb-2">{result.verdict?.toUpperCase()}</h3>
                       <div className="text-6xl font-bold mb-4">
-                        {result.confidence}%
+                        {result.score}%
                       </div>
                       <p className="text-lg">Confidence Score</p>
                     </div>
@@ -346,23 +299,13 @@ const TruthTest = ({ onBack, user }) => {
                     <div className="space-y-6">
                       <div>
                         <h4 className="text-lg font-semibold text-gray-900 mb-2">Analysis:</h4>
-                        <p className="text-gray-700 bg-white p-4 rounded-xl border">{result.explanation}</p>
-                      </div>
-
-                      <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Trust Impact:</h4>
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${result.trustDelta > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {result.trustDelta > 0 ? '+' : ''}{result.trustDelta}
-                          </span>
-                          <span className="text-gray-600">points</span>
-                        </div>
+                        <p className="text-gray-700 bg-white p-4 rounded-xl border">{result.reason}</p>
                       </div>
                     </div>
 
                     {/* Login Encouragement for Session Saving */}
                     {!user && (
-                      <Card className="bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
+                      <Card className="bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200 mt-6">
                         <CardContent className="p-6">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
@@ -398,19 +341,19 @@ const TruthTest = ({ onBack, user }) => {
                         onClick={onBack}
                         className="border border-gray-300 text-gray-700 px-6 py-3 rounded-full font-semibold hover:bg-gray-50 transition-all duration-300"
                       >
-                    Back to Home
-              </button>
-            </div>
-          </div>
-        )}
-      </motion.div>
-    )}
-  </AnimatePresence>
-</div> {/* <-- This closes the top-level wrapper div */}
-);
+                        Back to Home
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default TruthTest;
-
-
 
