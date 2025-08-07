@@ -7,6 +7,7 @@ import romanticCouple from '../assets/romantic-couple.jpg';
 
 const EnhancedHero = ({ 
   handleTruthTest, 
+  handleTruthTestAsync,
   handleGoLive, 
   handleCoupleMode, 
   handleAIScheduler, 
@@ -141,6 +142,21 @@ const EnhancedHero = ({
           >
             <MessageCircle className="w-5 h-5" />
             Truth Test
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05, y: -3 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleTruthTestAsync}
+            className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-4 rounded-xl text-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 relative"
+          >
+            <MessageCircle className="w-5 h-5" />
+            Async Truth Test
+            <motion.div
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute -top-1 -right-1 w-3 h-3 bg-blue-400 rounded-full"
+            />
           </motion.button>
 
           <motion.button
