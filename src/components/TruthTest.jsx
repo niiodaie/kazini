@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import callTruthAnalyzer from '../utils/callTruthAnalyzer';
 import { ArrowLeft, Send, Mic, MicOff, CheckCircle, AlertTriangle, XCircle, Loader2, User, Save } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -15,10 +16,31 @@ const TruthTest = ({ onBack, user }) => {
 
   // Mock AI analysis function
   const analyzeResponse = async (question, answer) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+  setIsLoading(true);
+  try {
+    const input = `${answer}`;
+    const response = await callTruthAnalyzer(input);
+
+    // structure expected from Supabase Function
+    setResult({
+      verdict: response?.verdict || 'Unknown',
+      score: response?.score || 0,
+      reason: response?.reason || '',
+    });
+    setStep(3); // go to result step
+  } catch (error) {
+    console.error('Truth Analyzer API failed:', error);
+    setResult({
+      verdict: 'Error',
+      score: 0,
+      reason: 'Unable to process input.',
+    });
+    setStep(3);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
     
     // Mock AI analysis logic
     const confidence = Math.floor(Math.random() * 40) + 60; // 60-100
