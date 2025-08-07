@@ -25,7 +25,7 @@ const MagicLinkLogin = ({ onSuccess, onError, loading, setLoading }) => {
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: window.location.origin
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
