@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 import { initializeAuth, setupAuthListener, handleLogout, isAuthenticated, handleAuthSuccess as authHandlerSuccess } from './utils/authHandler';
 import { ROUTES, navigateWithAuth, handlePostAuthRedirect, getDefaultRoute } from './utils/router';
 import { guardRoute } from './utils/routeGuard';
+import { useAnalytics } from './hooks/useAnalytics';
 
 import kaziniLogo from './assets/kazinilogo.png';
 import kaziniIcon from './assets/kazini-appicon.png';
@@ -35,6 +36,11 @@ import AuthCallback from './components/auth/AuthCallback';
 import EnhancedHero from './components/EnhancedHero';
 import LanguageSelector from './components/LanguageSelector';
 
+// Ad components
+import AdBanner from './components/ads/AdBanner';
+import AdSidebar from './components/ads/AdSidebar';
+import InArticleAd from './components/ads/InArticleAd';
+
 import { checkPlanAccess, PLAN_FEATURES } from './plans';
 
 function App() {
@@ -49,6 +55,9 @@ function App() {
   const [redirectAfterWelcome, setRedirectAfterWelcome] = useState(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
+
+  // Initialize analytics
+  const analytics = useAnalytics();
 
   // Handle URL hash tokens and session setup
   useEffect(() => {
