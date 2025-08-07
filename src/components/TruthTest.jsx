@@ -409,8 +409,8 @@ const TruthTest = ({ onBack, user }) => {
         </div>
       </div>
     </div>
-  );
-};
-
+});
+);
 export default TruthTest;
+
 
