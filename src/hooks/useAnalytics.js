@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { 
   trackPageView, 
   trackEvent, 
@@ -15,12 +14,10 @@ import {
 } from '../utils/analytics';
 
 export const useAnalytics = () => {
-  const location = useLocation();
-
-  // Track page views automatically
+  // Track page views automatically when component mounts
   useEffect(() => {
-    trackPageView(location.pathname, document.title);
-  }, [location]);
+    trackPageView(window.location.pathname, document.title);
+  }, []);
 
   return {
     // Authentication tracking

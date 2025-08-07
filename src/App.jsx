@@ -356,7 +356,6 @@ function App() {
             className="flex items-center space-x-3"
             whileHover={{ scale: 1.05 }}
           >
-            <img src={kaziniIcon} alt="Kazini" className="w-10 h-10" />
             <img src={kaziniLogo} alt="Kazini" className="h-8" />
           </motion.div>
           <div className="flex items-center space-x-4">
